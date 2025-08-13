@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import {
   getAuth,
   signInAnonymously,
-  signInWithCustomToken,
   onAuthStateChanged,
   signOut,
   User,
+  signInWithCustomToken, // <<< Importação da função de autenticação
 } from "firebase/auth";
 import {
   getFirestore,
@@ -32,16 +32,6 @@ import {
   Building2 as BuildingIcon,
   Monitor as EquipmentIcon,
 } from "lucide-react";
-
-// ====================================================================
-// Declaração de tipos globais para as variáveis do ambiente
-// Isso corrige os erros de 'Cannot find name'
-// ====================================================================
-declare global {
-  var __firebase_config: string | undefined;
-  var __initial_auth_token: string | undefined;
-  var __app_id: string | undefined;
-}
 
 // ====================================================================
 // Interfaces e dados estáticos
@@ -178,20 +168,52 @@ export default function App() {
   const [view, setView] = useState<"reserva" | "relatorio">("reserva");
 
   // ====================================================================
-  // Autenticação e Inicialização do Firebase (Versão corrigida e mais robusta)
+  // Autenticação e Inicialização do Firebase (Versão mais robusta)
   // ====================================================================
   useEffect(() => {
     const initFirebase = async () => {
       try {
-        const firebaseConfig =
-          typeof __firebase_config !== "undefined"
-            ? JSON.parse(__firebase_config)
-            : {};
+        let firebaseConfig: any;
+        let firebaseConfigString: string | undefined;
+        let isDevEnvironment = false;
 
-        const initialAuthToken =
-          typeof __initial_auth_token !== "undefined"
-            ? __initial_auth_token
-            : null;
+        // Uso de `globalThis` para evitar erros de compilação do TypeScript no Vercel
+        const globalConfig = (globalThis as any).__firebase_config;
+        const globalToken = (globalThis as any).__initial_auth_token;
+
+        if (
+          typeof process !== "undefined" &&
+          process.env.NEXT_PUBLIC_FIREBASE_CONFIG
+        ) {
+          firebaseConfigString = process.env.NEXT_PUBLIC_FIREBASE_CONFIG;
+        } else if (globalConfig) {
+          firebaseConfigString = globalConfig;
+          isDevEnvironment = true;
+        }
+
+        if (!firebaseConfigString) {
+          setLoadingUser(false);
+          setIsAuthReady(true);
+          setMensagem({
+            tipo: "erro",
+            texto:
+              "Configuração do Firebase não encontrada. Verifique as variáveis de ambiente.",
+          });
+          return;
+        }
+
+        try {
+          firebaseConfig = JSON.parse(firebaseConfigString);
+        } catch (e) {
+          setLoadingUser(false);
+          setIsAuthReady(true);
+          setMensagem({
+            tipo: "erro",
+            texto:
+              "Erro ao analisar a configuração do Firebase. Verifique o formato JSON da variável de ambiente.",
+          });
+          return;
+        }
 
         const app = initializeApp(firebaseConfig);
         const authInstance = getAuth(app);
@@ -199,8 +221,9 @@ export default function App() {
         setAuth(authInstance);
         setDb(dbInstance);
 
-        if (initialAuthToken) {
-          await signInWithCustomToken(authInstance, initialAuthToken);
+        // Lógica de autenticação adaptada para o ambiente
+        if (isDevEnvironment && globalToken) {
+          await signInWithCustomToken(authInstance, globalToken);
         } else {
           await signInAnonymously(authInstance);
         }
@@ -211,10 +234,14 @@ export default function App() {
           setIsAuthReady(true);
         });
         return () => unsub();
-      } catch (e) {
+      } catch (e: any) {
         console.error("Erro ao inicializar Firebase ou autenticar:", e);
         setLoadingUser(false);
         setIsAuthReady(true);
+        setMensagem({
+          tipo: "erro",
+          texto: `Erro: ${e.message}. Verifique a configuração do Firebase.`,
+        });
       }
     };
     initFirebase();
@@ -223,7 +250,6 @@ export default function App() {
   // ====================================================================
   // Hooks para buscar dados do Firestore
   // ====================================================================
-  // Hook para buscar reservas de AMBIENTE para a visualização de reserva (verificação de conflitos)
   useEffect(() => {
     if (
       !db ||
@@ -268,7 +294,6 @@ export default function App() {
     isAuthReady,
   ]);
 
-  // Hook para buscar reservas de EQUIPAMENTO para a visualização de reserva (verificação de conflitos)
   useEffect(() => {
     if (
       !db ||
@@ -313,7 +338,6 @@ export default function App() {
     isAuthReady,
   ]);
 
-  // Hook para buscar TODAS as reservas do dia para o relatório
   useEffect(() => {
     if (
       !db ||
@@ -347,7 +371,6 @@ export default function App() {
           ...doc.data(),
         })) as Reserva[];
 
-        // Adiciona o nome do recurso ao objeto de reserva
         const listaComNomes: ReservaComNomeRecurso[] = lista.map((reserva) => {
           const dadosRecurso =
             reserva.tipo === "ambiente"
@@ -375,7 +398,6 @@ export default function App() {
   // ====================================================================
   // Funções de manipulação do estado e Firestore
   // ====================================================================
-  // Função para selecionar horários
   const handleHorarioSelection = (horario: string, isChecked: boolean) => {
     if (isChecked) {
       setHorariosSelecionados([...horariosSelecionados, horario]);
@@ -386,7 +408,6 @@ export default function App() {
     }
   };
 
-  // Função de logout (para usuários não anônimos)
   const logout = () => {
     if (auth) {
       signOut(auth).catch((error) => {
@@ -395,7 +416,6 @@ export default function App() {
     }
   };
 
-  // Função para salvar as reservas
   const salvarReserva = async () => {
     if (!db || !user) return;
     const isAmbiente = tipoAgendamento === "ambiente";
@@ -403,7 +423,6 @@ export default function App() {
       ? "reservas_ambientes"
       : "reservas_equipamentos";
 
-    // Validações
     if (
       !recursoSelecionado ||
       !dataSelecionada ||
@@ -447,7 +466,7 @@ export default function App() {
         turma: isAmbiente ? turmaSelecionada : null,
         professor: professorSelecionado,
         usuarioId: user!.uid,
-        usuarioNome: "Usuário Anônimo", // O usuário anônimo não tem displayName
+        usuarioNome: "Usuário Anônimo",
         criadoEm: new Date().toISOString(),
       })
     );
@@ -469,7 +488,6 @@ export default function App() {
     }
   };
 
-  // Função para excluir uma reserva
   const excluirReserva = async (
     id: string,
     tipo: "ambiente" | "equipamento"
@@ -501,8 +519,7 @@ export default function App() {
     );
   }
 
-  // O app será acessível apenas para usuários autenticados (anônimos neste caso)
-  if (!user) {
+  if (!user && !mensagem?.texto.includes("Configuração")) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-poppins p-8 text-gray-800">
         <div className="text-center p-8 bg-white rounded-3xl shadow-xl max-w-md mx-auto">
@@ -545,35 +562,9 @@ export default function App() {
               <UserIcon className="mr-2 text-blue-600" size={24} /> Olá, Usuário
               Anônimo 👋
             </div>
-            {/* O logout com usuário anônimo não faz sentido. O botão foi removido */}
           </div>
         </header>
 
-        {/* Navegação entre as visualizações */}
-        <div className="flex justify-center space-x-2 md:space-x-4 mb-6 p-2 rounded-2xl bg-white shadow-lg">
-          <button
-            onClick={() => setView("reserva")}
-            className={`flex-1 flex justify-center items-center px-4 md:px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-              view === "reserva"
-                ? "bg-blue-600 text-white shadow-xl"
-                : "bg-gray-200 text-gray-700 hover:bg-blue-100"
-            }`}
-          >
-            <CalendarIcon className="mr-2 h-5 w-5" /> Fazer Reserva
-          </button>
-          <button
-            onClick={() => setView("relatorio")}
-            className={`flex-1 flex justify-center items-center px-4 md:px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-              view === "relatorio"
-                ? "bg-blue-600 text-white shadow-xl"
-                : "bg-gray-200 text-gray-700 hover:bg-blue-100"
-            }`}
-          >
-            <ClipboardListIcon className="mr-2 h-5 w-5" /> Relatório de Reservas
-          </button>
-        </div>
-
-        {/* Seção de Mensagens */}
         {mensagem && (
           <div
             className={`p-4 rounded-xl mb-6 flex justify-between items-center shadow-lg transition-all duration-300 ${
@@ -592,346 +583,369 @@ export default function App() {
           </div>
         )}
 
-        {/* Visualização de Fazer Reserva */}
-        {view === "reserva" && (
-          <section className="p-6 bg-white rounded-3xl shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6 text-gray-700 flex items-center">
-              <span className="mr-2">📝</span> Nova Reserva
-            </h2>
-
-            {/* Alternador de tipo de agendamento */}
-            <div className="flex justify-center space-x-2 md:space-x-4 mb-6">
+        {user && (
+          <>
+            <div className="flex justify-center space-x-2 md:space-x-4 mb-6 p-2 rounded-2xl bg-white shadow-lg">
               <button
-                onClick={() => {
-                  setTipoAgendamento("ambiente");
-                  setRecursoSelecionado("");
-                  setHorariosSelecionados([]);
-                }}
-                className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                  tipoAgendamento === "ambiente"
+                onClick={() => setView("reserva")}
+                className={`flex-1 flex justify-center items-center px-4 md:px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                  view === "reserva"
                     ? "bg-blue-600 text-white shadow-xl"
                     : "bg-gray-200 text-gray-700 hover:bg-blue-100"
                 }`}
               >
-                <BuildingIcon className="mr-2 h-5 w-5" /> Agendar Ambiente
+                <CalendarIcon className="mr-2 h-5 w-5" /> Fazer Reserva
               </button>
               <button
-                onClick={() => {
-                  setTipoAgendamento("equipamento");
-                  setRecursoSelecionado("");
-                  setHorariosSelecionados([]);
-                }}
-                className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                  tipoAgendamento === "equipamento"
+                onClick={() => setView("relatorio")}
+                className={`flex-1 flex justify-center items-center px-4 md:px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                  view === "relatorio"
                     ? "bg-blue-600 text-white shadow-xl"
                     : "bg-gray-200 text-gray-700 hover:bg-blue-100"
                 }`}
               >
-                <EquipmentIcon className="mr-2 h-5 w-5" /> Agendar Equipamento
+                <ClipboardListIcon className="mr-2 h-5 w-5" /> Relatório de
+                Reservas
               </button>
             </div>
 
-            {/* Formulário de Reserva */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label
-                  htmlFor="data"
-                  className="block text-gray-600 font-medium mb-1"
-                >
-                  Data
-                </label>
-                <input
-                  type="date"
-                  id="data"
-                  value={dataSelecionada}
-                  onChange={(e) => setDataSelecionada(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
-                />
-              </div>
+            {view === "reserva" && (
+              <section className="p-6 bg-white rounded-3xl shadow-2xl">
+                <h2 className="text-2xl font-bold mb-6 text-gray-700 flex items-center">
+                  <span className="mr-2">📝</span> Nova Reserva
+                </h2>
 
-              {tipoAgendamento === "ambiente" ? (
-                // Formulário para Ambientes
-                <>
-                  <div>
-                    <label
-                      htmlFor="ambiente"
-                      className="block text-gray-600 font-medium mb-1"
-                    >
-                      Ambiente
-                    </label>
-                    <select
-                      id="ambiente"
-                      value={recursoSelecionado}
-                      onChange={(e) => {
-                        setRecursoSelecionado(e.target.value);
-                        setHorariosSelecionados([]);
-                      }}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
-                    >
-                      <option value="">-- Selecione --</option>
-                      {ambientes.map((amb) => (
-                        <option key={amb.id} value={amb.id}>
-                          {amb.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="turma"
-                      className="block text-gray-600 font-medium mb-1"
-                    >
-                      Turma
-                    </label>
-                    <select
-                      id="turma"
-                      value={turmaSelecionada}
-                      onChange={(e) => setTurmaSelecionada(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
-                    >
-                      <option value="">-- Selecione --</option>
-                      {turmas.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              ) : (
-                // Formulário para Equipamentos
-                <div>
-                  <label
-                    htmlFor="equipamento"
-                    className="block text-gray-600 font-medium mb-1"
-                  >
-                    Equipamento
-                  </label>
-                  <select
-                    id="equipamento"
-                    value={recursoSelecionado}
-                    onChange={(e) => {
-                      setRecursoSelecionado(e.target.value);
+                <div className="flex justify-center space-x-2 md:space-x-4 mb-6">
+                  <button
+                    onClick={() => {
+                      setTipoAgendamento("ambiente");
+                      setRecursoSelecionado("");
                       setHorariosSelecionados([]);
                     }}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                    className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                      tipoAgendamento === "ambiente"
+                        ? "bg-blue-600 text-white shadow-xl"
+                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                    }`}
                   >
-                    <option value="">-- Selecione --</option>
-                    {equipamentos.map((eq) => (
-                      <option key={eq.id} value={eq.id}>
-                        {eq.nome}
-                      </option>
-                    ))}
-                  </select>
+                    <BuildingIcon className="mr-2 h-5 w-5" /> Agendar Ambiente
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTipoAgendamento("equipamento");
+                      setRecursoSelecionado("");
+                      setHorariosSelecionados([]);
+                    }}
+                    className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                      tipoAgendamento === "equipamento"
+                        ? "bg-blue-600 text-white shadow-xl"
+                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                    }`}
+                  >
+                    <EquipmentIcon className="mr-2 h-5 w-5" /> Agendar
+                    Equipamento
+                  </button>
                 </div>
-              )}
-              <div className="md:col-span-2">
-                <label
-                  htmlFor="professor"
-                  className="block text-gray-600 font-medium mb-1"
-                >
-                  Professor
-                </label>
-                <select
-                  id="professor"
-                  value={professorSelecionado}
-                  onChange={(e) => setProfessorSelecionado(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
-                >
-                  <option value="">-- Selecione --</option>
-                  {professores.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
 
-            <h3 className="text-xl font-bold mb-4 text-gray-700">
-              Horários Disponíveis
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {horarios.map((h, i) => {
-                const reservado =
-                  tipoAgendamento === "ambiente"
-                    ? reservasAmbiente.some((r) => r.horario === h)
-                    : reservasEquipamento.some((r) => r.horario === h);
-                const isChecked = horariosSelecionados.includes(h);
-
-                return (
-                  <div key={i}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div>
                     <label
-                      className={`flex flex-col justify-center items-center p-3 rounded-xl shadow-md transition-all duration-200 cursor-pointer text-center ${
-                        reservado
-                          ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                          : isChecked
-                          ? "bg-blue-200 border-2 border-blue-500 text-blue-900"
-                          : "bg-white hover:bg-blue-50"
-                      }`}
+                      htmlFor="data"
+                      className="block text-gray-600 font-medium mb-1"
                     >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        disabled={reservado}
-                        onChange={(e) =>
-                          handleHorarioSelection(h, e.target.checked)
-                        }
-                        className="form-checkbox text-blue-600 h-5 w-5 mb-2"
-                      />
-                      <span className="text-sm font-semibold">{h}</span>
-                      {reservado && (
-                        <span className="text-xs text-gray-500 mt-1">
-                          (Reservado)
-                        </span>
-                      )}
+                      Data
                     </label>
+                    <input
+                      type="date"
+                      id="data"
+                      value={dataSelecionada}
+                      onChange={(e) => setDataSelecionada(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                    />
                   </div>
-                );
-              })}
-            </div>
 
-            <button
-              onClick={salvarReserva}
-              disabled={
-                !user ||
-                horariosSelecionados.length === 0 ||
-                !professorSelecionado ||
-                (tipoAgendamento === "ambiente" && !turmaSelecionada)
-              }
-              className={`mt-8 w-full py-3 rounded-full font-bold text-white transition-all duration-300 transform ${
-                user &&
-                horariosSelecionados.length > 0 &&
-                professorSelecionado &&
-                (tipoAgendamento === "equipamento" || turmaSelecionada)
-                  ? "bg-blue-600 hover:bg-blue-700 shadow-xl hover:scale-105"
-                  : "bg-gray-400 cursor-not-allowed"
-              }`}
-            >
-              Confirmar Reserva
-            </button>
-          </section>
-        )}
-
-        {/* Visualização de Relatório */}
-        {view === "relatorio" && (
-          <section className="p-6 bg-white rounded-3xl shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6 text-gray-700 flex items-center">
-              <ClipboardListIcon className="mr-2 h-6 w-6" /> Relatório de
-              Reservas do Dia
-            </h2>
-
-            {/* Alternador de tipo de relatório */}
-            <div className="flex justify-center space-x-2 md:space-x-4 mb-6">
-              <button
-                onClick={() => setRelatorioTipo("ambiente")}
-                className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                  relatorioTipo === "ambiente"
-                    ? "bg-blue-600 text-white shadow-xl"
-                    : "bg-gray-200 text-gray-700 hover:bg-blue-100"
-                }`}
-              >
-                <BuildingIcon className="mr-2 h-5 w-5" /> Ambientes
-              </button>
-              <button
-                onClick={() => setRelatorioTipo("equipamento")}
-                className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                  relatorioTipo === "equipamento"
-                    ? "bg-blue-600 text-white shadow-xl"
-                    : "bg-gray-200 text-gray-700 hover:bg-blue-100"
-                }`}
-              >
-                <EquipmentIcon className="mr-2 h-5 w-5" /> Equipamentos
-              </button>
-            </div>
-
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-              <label
-                htmlFor="relatorioData"
-                className="block text-gray-600 font-medium"
-              >
-                Selecione a data:
-              </label>
-              <input
-                type="date"
-                id="relatorioData"
-                value={dataSelecionada}
-                onChange={(e) => setDataSelecionada(e.target.value)}
-                className="w-full md:w-1/3 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
-              />
-            </div>
-
-            {loadingReservas ? (
-              <p className="text-center text-gray-500">
-                Carregando reservas...
-              </p>
-            ) : relatorioReservas.length === 0 ? (
-              <p className="text-center text-gray-500">
-                Nenhuma reserva de {relatorioTipo} registrada para esta data.
-              </p>
-            ) : (
-              <div className="overflow-x-auto rounded-xl shadow-md border border-gray-200">
-                <table className="min-w-full bg-white">
-                  <thead>
-                    <tr className="text-left border-b-2 border-gray-300 bg-blue-100">
-                      <th className="py-4 px-4 font-bold text-blue-800">
-                        {relatorioTipo === "ambiente"
-                          ? "Ambiente"
-                          : "Equipamento"}
-                      </th>
-                      <th className="py-4 px-4 font-bold text-blue-800">
-                        Horário
-                      </th>
-                      <th className="py-4 px-4 font-bold text-blue-800">
-                        Professor
-                      </th>
-                      <th className="py-4 px-4 font-bold text-blue-800">
-                        Responsável
-                      </th>
-                      <th className="py-4 px-4 font-bold text-blue-800 text-center">
-                        Ações
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {relatorioReservas.map((reserva, index) => (
-                      <tr
-                        key={reserva.id}
-                        className={`border-b border-gray-200 transition-colors ${
-                          index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                        } hover:bg-blue-50`}
+                  {tipoAgendamento === "ambiente" ? (
+                    <>
+                      <div>
+                        <label
+                          htmlFor="ambiente"
+                          className="block text-gray-600 font-medium mb-1"
+                        >
+                          Ambiente
+                        </label>
+                        <select
+                          id="ambiente"
+                          value={recursoSelecionado}
+                          onChange={(e) => {
+                            setRecursoSelecionado(e.target.value);
+                            setHorariosSelecionados([]);
+                          }}
+                          className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                        >
+                          <option value="">-- Selecione --</option>
+                          {ambientes.map((amb) => (
+                            <option key={amb.id} value={amb.id}>
+                              {amb.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="turma"
+                          className="block text-gray-600 font-medium mb-1"
+                        >
+                          Turma
+                        </label>
+                        <select
+                          id="turma"
+                          value={turmaSelecionada}
+                          onChange={(e) => setTurmaSelecionada(e.target.value)}
+                          className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                        >
+                          <option value="">-- Selecione --</option>
+                          {turmas.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <label
+                        htmlFor="equipamento"
+                        className="block text-gray-600 font-medium mb-1"
                       >
-                        <td className="py-3 px-4">{reserva.nomeRecurso}</td>
-                        <td className="py-3 px-4 font-semibold text-gray-700">
-                          {reserva.horario}
-                        </td>
-                        <td className="py-3 px-4">
-                          {reserva.professor}
-                          {reserva.turma && (
-                            <span className="text-xs text-gray-500 block">
-                              ({reserva.turma})
+                        Equipamento
+                      </label>
+                      <select
+                        id="equipamento"
+                        value={recursoSelecionado}
+                        onChange={(e) => {
+                          setRecursoSelecionado(e.target.value);
+                          setHorariosSelecionados([]);
+                        }}
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                      >
+                        <option value="">-- Selecione --</option>
+                        {equipamentos.map((eq) => (
+                          <option key={eq.id} value={eq.id}>
+                            {eq.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="professor"
+                      className="block text-gray-600 font-medium mb-1"
+                    >
+                      Professor
+                    </label>
+                    <select
+                      id="professor"
+                      value={professorSelecionado}
+                      onChange={(e) => setProfessorSelecionado(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                    >
+                      <option value="">-- Selecione --</option>
+                      {professores.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-bold mb-4 text-gray-700">
+                  Horários Disponíveis
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {horarios.map((h, i) => {
+                    const reservado =
+                      tipoAgendamento === "ambiente"
+                        ? reservasAmbiente.some((r) => r.horario === h)
+                        : reservasEquipamento.some((r) => r.horario === h);
+                    const isChecked = horariosSelecionados.includes(h);
+
+                    return (
+                      <div key={i}>
+                        <label
+                          className={`flex flex-col justify-center items-center p-3 rounded-xl shadow-md transition-all duration-200 cursor-pointer text-center ${
+                            reservado
+                              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                              : isChecked
+                              ? "bg-blue-200 border-2 border-blue-500 text-blue-900"
+                              : "bg-white hover:bg-blue-50"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            disabled={reservado}
+                            onChange={(e) =>
+                              handleHorarioSelection(h, e.target.checked)
+                            }
+                            className="form-checkbox text-blue-600 h-5 w-5 mb-2"
+                          />
+                          <span className="text-sm font-semibold">{h}</span>
+                          {reservado && (
+                            <span className="text-xs text-gray-500 mt-1">
+                              (Reservado)
                             </span>
                           )}
-                        </td>
-                        <td className="py-3 px-4">{reserva.usuarioNome}</td>
-                        <td className="py-3 px-4 text-center">
-                          <button
-                            onClick={() =>
-                              excluirReserva(reserva.id, reserva.tipo)
-                            }
-                            className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
-                            aria-label="Excluir reserva"
-                          >
-                            <TrashIcon size={18} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={salvarReserva}
+                  disabled={
+                    !user ||
+                    horariosSelecionados.length === 0 ||
+                    !professorSelecionado ||
+                    (tipoAgendamento === "ambiente" && !turmaSelecionada)
+                  }
+                  className={`mt-8 w-full py-3 rounded-full font-bold text-white transition-all duration-300 transform ${
+                    user &&
+                    horariosSelecionados.length > 0 &&
+                    professorSelecionado &&
+                    (tipoAgendamento === "equipamento" || turmaSelecionada)
+                      ? "bg-blue-600 hover:bg-blue-700 shadow-xl hover:scale-105"
+                      : "bg-gray-400 cursor-not-allowed"
+                  }`}
+                >
+                  Confirmar Reserva
+                </button>
+              </section>
             )}
-          </section>
+
+            {view === "relatorio" && (
+              <section className="p-6 bg-white rounded-3xl shadow-2xl">
+                <h2 className="text-2xl font-bold mb-6 text-gray-700 flex items-center">
+                  <ClipboardListIcon className="mr-2 h-6 w-6" /> Relatório de
+                  Reservas do Dia
+                </h2>
+
+                <div className="flex justify-center space-x-2 md:space-x-4 mb-6">
+                  <button
+                    onClick={() => setRelatorioTipo("ambiente")}
+                    className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                      relatorioTipo === "ambiente"
+                        ? "bg-blue-600 text-white shadow-xl"
+                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                    }`}
+                  >
+                    <BuildingIcon className="mr-2 h-5 w-5" /> Ambientes
+                  </button>
+                  <button
+                    onClick={() => setRelatorioTipo("equipamento")}
+                    className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                      relatorioTipo === "equipamento"
+                        ? "bg-blue-600 text-white shadow-xl"
+                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                    }`}
+                  >
+                    <EquipmentIcon className="mr-2 h-5 w-5" /> Equipamentos
+                  </button>
+                </div>
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                  <label
+                    htmlFor="relatorioData"
+                    className="block text-gray-600 font-medium"
+                  >
+                    Selecione a data:
+                  </label>
+                  <input
+                    type="date"
+                    id="relatorioData"
+                    value={dataSelecionada}
+                    onChange={(e) => setDataSelecionada(e.target.value)}
+                    className="w-full md:w-1/3 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                  />
+                </div>
+
+                {loadingReservas ? (
+                  <p className="text-center text-gray-500">
+                    Carregando reservas...
+                  </p>
+                ) : relatorioReservas.length === 0 ? (
+                  <p className="text-center text-gray-500">
+                    Nenhuma reserva de {relatorioTipo} registrada para esta
+                    data.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl shadow-md border border-gray-200">
+                    <table className="min-w-full bg-white">
+                      <thead>
+                        <tr className="text-left border-b-2 border-gray-300 bg-blue-100">
+                          <th className="py-4 px-4 font-bold text-blue-800">
+                            {relatorioTipo === "ambiente"
+                              ? "Ambiente"
+                              : "Equipamento"}
+                          </th>
+                          <th className="py-4 px-4 font-bold text-blue-800">
+                            Horário
+                          </th>
+                          <th className="py-4 px-4 font-bold text-blue-800">
+                            Professor
+                          </th>
+                          <th className="py-4 px-4 font-bold text-blue-800">
+                            Responsável
+                          </th>
+                          <th className="py-4 px-4 font-bold text-blue-800 text-center">
+                            Ações
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {relatorioReservas.map((reserva, index) => (
+                          <tr
+                            key={reserva.id}
+                            className={`border-b border-gray-200 transition-colors ${
+                              index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                            } hover:bg-blue-50`}
+                          >
+                            <td className="py-3 px-4">{reserva.nomeRecurso}</td>
+                            <td className="py-3 px-4 font-semibold text-gray-700">
+                              {reserva.horario}
+                            </td>
+                            <td className="py-3 px-4">
+                              {reserva.professor}
+                              {reserva.turma && (
+                                <span className="text-xs text-gray-500 block">
+                                  ({reserva.turma})
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">{reserva.usuarioNome}</td>
+                            <td className="py-3 px-4 text-center">
+                              <button
+                                onClick={() =>
+                                  excluirReserva(reserva.id, reserva.tipo)
+                                }
+                                className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+                                aria-label="Excluir reserva"
+                              >
+                                <TrashIcon size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            )}
+          </>
         )}
       </div>
     </div>
