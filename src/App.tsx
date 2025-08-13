@@ -35,7 +35,7 @@ import {
 
 // ====================================================================
 // ====================================================================
-// Sua configuração do Firebase (mantida da versão anterior)
+// SUA NOVA CONFIGURAÇÃO DO FIREBASE (ATUALIZADA)
 // ====================================================================
 // ====================================================================
 const firebaseConfig = {
@@ -61,17 +61,18 @@ const ambientes = [
   { id: "biblioteca", nome: "Biblioteca 📚" },
 ];
 
+// Lista de equipamentos atualizada com os novos itens
 const equipamentos = [
   { id: "projetorEpson", nome: "Projetor Epson 🖥️" },
   { id: "projetorBenq", nome: "Projetor Benq 🖥️" },
   { id: "smartvSamsung", nome: "Smartv Samsung 📺" },
   { id: "caixaSom", nome: "Caixa de Som 🔊" },
-  { id: "smarttvAOC", nome: "smart tv AOC 💻" },
+  { id: "smarttvAOC", nome: "Smart TV AOC 💻" },
   { id: "projetorGoldentec", nome: "Projetor Goldentec 💻" },
-  { id: "smartvCordenaçãodearea", nome: "Smartv coordenação de área 📺" },
+  { id: "smartvCoordenacaoDeArea", nome: "Smartv Coordenação de Área 📺" },
   { id: "smartvInformaticaI", nome: "Smartv Informática I 📺" },
   { id: "smartvInformaticaII", nome: "Smartv Informática II 📺" },
-  { id: "smartvSaladevideo", nome: "Smartv sala de vídeo 📺" },
+  { id: "smartvSalaDeVideo", nome: "Smartv Sala de Vídeo 📺" },
 ];
 
 const horarios = [
@@ -852,7 +853,6 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* A correção de tipagem foi aplicada aqui e na definição do estado. */}
                     {relatorioReservas.map((r, index) => (
                       <tr
                         key={r.id}
