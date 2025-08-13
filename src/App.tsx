@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import {
   getAuth,
-  signInAnonymously,
   onAuthStateChanged,
   signOut,
   User,
-  signInWithCustomToken, // <<< Importação da função de autenticação
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithCustomToken,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -31,6 +32,7 @@ import {
   LogOut as LogoutIcon,
   Building2 as BuildingIcon,
   Monitor as EquipmentIcon,
+  ArrowRight as ArrowRightIcon,
 } from "lucide-react";
 
 // ====================================================================
@@ -40,11 +42,11 @@ import {
 // Define os tipos para as reservas salvas no Firestore
 interface Reserva {
   id: string;
-  tipo: "ambiente" | "equipamento"; // Novo campo para diferenciar
-  recursoId: string; // ID do ambiente ou equipamento
+  tipo: "ambiente" | "equipamento";
+  recursoId: string;
   data: string;
   horario: string;
-  turma?: string | null; // Opcional para equipamentos
+  turma?: string | null;
   professor: string;
   usuarioId: string;
   usuarioNome: string;
@@ -168,52 +170,19 @@ export default function App() {
   const [view, setView] = useState<"reserva" | "relatorio">("reserva");
 
   // ====================================================================
-  // Autenticação e Inicialização do Firebase (Versão mais robusta)
+  // Autenticação e Inicialização do Firebase (Versão com login do Google)
   // ====================================================================
   useEffect(() => {
     const initFirebase = async () => {
       try {
-        let firebaseConfig: any;
-        let firebaseConfigString: string | undefined;
-        let isDevEnvironment = false;
-
-        // Uso de `globalThis` para evitar erros de compilação do TypeScript no Vercel
-        const globalConfig = (globalThis as any).__firebase_config;
-        const globalToken = (globalThis as any).__initial_auth_token;
-
-        if (
-          typeof process !== "undefined" &&
-          process.env.NEXT_PUBLIC_FIREBASE_CONFIG
-        ) {
-          firebaseConfigString = process.env.NEXT_PUBLIC_FIREBASE_CONFIG;
-        } else if (globalConfig) {
-          firebaseConfigString = globalConfig;
-          isDevEnvironment = true;
-        }
-
-        if (!firebaseConfigString) {
-          setLoadingUser(false);
-          setIsAuthReady(true);
-          setMensagem({
-            tipo: "erro",
-            texto:
-              "Configuração do Firebase não encontrada. Verifique as variáveis de ambiente.",
-          });
-          return;
-        }
-
-        try {
-          firebaseConfig = JSON.parse(firebaseConfigString);
-        } catch (e) {
-          setLoadingUser(false);
-          setIsAuthReady(true);
-          setMensagem({
-            tipo: "erro",
-            texto:
-              "Erro ao analisar a configuração do Firebase. Verifique o formato JSON da variável de ambiente.",
-          });
-          return;
-        }
+        const firebaseConfig = {
+          apiKey: "AIzaSyAh1UHya83-uANm6RYmOt-Fk885WIJTe0U",
+          authDomain: "agendamento-de-ambientes.firebaseapp.com",
+          projectId: "agendamento-de-ambientes",
+          storageBucket: "agendamento-de-ambientes.firebasestorage.app",
+          messagingSenderId: "436747247500",
+          appId: "1:436747247500:web:d9438aab4b29c3d8f900a9",
+        };
 
         const app = initializeApp(firebaseConfig);
         const authInstance = getAuth(app);
@@ -222,10 +191,10 @@ export default function App() {
         setDb(dbInstance);
 
         // Lógica de autenticação adaptada para o ambiente
-        if (isDevEnvironment && globalToken) {
+        const globalToken = (globalThis as any).__initial_auth_token;
+        if (globalToken) {
+          // Usa o token do ambiente para login automático
           await signInWithCustomToken(authInstance, globalToken);
-        } else {
-          await signInAnonymously(authInstance);
         }
 
         const unsub = onAuthStateChanged(authInstance, (usuario) => {
@@ -398,6 +367,22 @@ export default function App() {
   // ====================================================================
   // Funções de manipulação do estado e Firestore
   // ====================================================================
+
+  // Função para lidar com o login do Google
+  const handleGoogleSignIn = async () => {
+    if (!auth) return;
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      setMensagem({
+        tipo: "sucesso",
+        texto: "Login com Google realizado com sucesso!",
+      });
+    } catch (error: any) {
+      setMensagem({ tipo: "erro", texto: error.message });
+    }
+  };
+
   const handleHorarioSelection = (horario: string, isChecked: boolean) => {
     if (isChecked) {
       setHorariosSelecionados([...horariosSelecionados, horario]);
@@ -466,7 +451,7 @@ export default function App() {
         turma: isAmbiente ? turmaSelecionada : null,
         professor: professorSelecionado,
         usuarioId: user!.uid,
-        usuarioNome: "Usuário Anônimo",
+        usuarioNome: user?.displayName || user?.email || "Desconhecido", // Nome do usuário logado
         criadoEm: new Date().toISOString(),
       })
     );
@@ -519,7 +504,7 @@ export default function App() {
     );
   }
 
-  if (!user && !mensagem?.texto.includes("Configuração")) {
+  if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-poppins p-8 text-gray-800">
         <div className="text-center p-8 bg-white rounded-3xl shadow-xl max-w-md mx-auto">
@@ -529,7 +514,49 @@ export default function App() {
           <h2 className="text-xl md:text-2xl mb-8 mt-2 text-gray-600 font-semibold">
             Agendamento de Ambientes e Equipamentos
           </h2>
-          <p className="text-lg text-gray-500">Aguardando autenticação...</p>
+          <p className="text-lg text-gray-500 mb-6">
+            Por favor, faça login para continuar.
+          </p>
+          <button
+            onClick={handleGoogleSignIn}
+            className="w-full flex items-center justify-center px-4 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all duration-300 transform hover:scale-105"
+          >
+            <svg
+              className="w-6 h-6 mr-2"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 48 48"
+              fill="currentColor"
+            >
+              <path
+                fill="#FFC107"
+                d="M43.611 20.083H42V20H24v8h11.303c-1.615 4.989-6.401 8.583-11.303 8.583-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.096 29.043 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+              />
+              <path
+                fill="#FF3D00"
+                d="M6.306 14.691L14.69 21.014l5.656-5.657-8.384-6.323z"
+              />
+              <path
+                fill="#4CAF50"
+                d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238a12.028 12.028 0 01-7.219 2.19c-3.167 0-5.908-1.545-7.594-3.875L6.306 34.1z"
+              />
+              <path
+                fill="#1976D2"
+                d="M43.611 20.083c-.138-1.341-.389-2.65-.769-3.917H24v8h11.303a12.053 12.053 0 01-3.13 6.918l5.656 5.657c3.153-2.935 5.253-7.054 6.6-11.751z"
+              />
+            </svg>
+            Entrar com Google
+          </button>
+          {mensagem && (
+            <div
+              className={`mt-4 p-3 rounded-xl transition-all duration-300 ${
+                mensagem.tipo === "sucesso"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-red-100 text-red-700"
+              }`}
+            >
+              <span>{mensagem.texto}</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -559,9 +586,15 @@ export default function App() {
           </h1>
           <div className="flex flex-col md:flex-row justify-between w-full mt-4 items-center gap-4">
             <div className="flex items-center text-lg md:text-xl font-semibold text-gray-700">
-              <UserIcon className="mr-2 text-blue-600" size={24} /> Olá, Usuário
-              Anônimo 👋
+              <UserIcon className="mr-2 text-blue-600" size={24} /> Olá,{" "}
+              {user.displayName || "Usuário"} 👋
             </div>
+            <button
+              onClick={logout}
+              className="flex items-center px-4 py-2 bg-red-100 text-red-700 rounded-full font-semibold hover:bg-red-200 transition-all duration-300"
+            >
+              <LogoutIcon className="mr-2 h-5 w-5" /> Sair
+            </button>
           </div>
         </header>
 
