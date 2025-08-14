@@ -7,6 +7,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithCustomToken,
+  signInAnonymously,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -175,14 +176,11 @@ export default function App() {
   useEffect(() => {
     const initFirebase = async () => {
       try {
-        const firebaseConfig = {
-          apiKey: "AIzaSyAh1UHya83-uANm6RYmOt-Fk885WIJTe0U",
-          authDomain: "agendamento-de-ambientes.firebaseapp.com",
-          projectId: "agendamento-de-ambientes",
-          storageBucket: "agendamento-de-ambientes.firebasestorage.app",
-          messagingSenderId: "436747247500",
-          appId: "1:436747247500:web:d9438aab4b29c3d8f900a9",
-        };
+        const globalConfig = (globalThis as any).__firebase_config;
+        if (!globalConfig) {
+          throw new Error("Firebase config não encontrada.");
+        }
+        const firebaseConfig = JSON.parse(globalConfig);
 
         const app = initializeApp(firebaseConfig);
         const authInstance = getAuth(app);
@@ -190,11 +188,11 @@ export default function App() {
         setAuth(authInstance);
         setDb(dbInstance);
 
-        // Lógica de autenticação adaptada para o ambiente
         const globalToken = (globalThis as any).__initial_auth_token;
         if (globalToken) {
-          // Usa o token do ambiente para login automático
           await signInWithCustomToken(authInstance, globalToken);
+        } else {
+          await signInAnonymously(authInstance);
         }
 
         const unsub = onAuthStateChanged(authInstance, (usuario) => {
@@ -477,13 +475,23 @@ export default function App() {
     id: string,
     tipo: "ambiente" | "equipamento"
   ) => {
-    if (!db) return;
+    if (!db) {
+      console.error("Firestore não está inicializado.");
+      setMensagem({ tipo: "erro", texto: "Erro: Firestore não está pronto." });
+      return;
+    }
+
     try {
       const collectionName =
         tipo === "ambiente" ? "reservas_ambientes" : "reservas_equipamentos";
-      await deleteDoc(doc(db, collectionName, id));
+
+      // Cria a referência correta do documento antes de tentar a exclusão
+      const docRef = doc(db, collectionName, id);
+      await deleteDoc(docRef);
+
       setMensagem({ tipo: "sucesso", texto: "Reserva excluída com sucesso!" });
     } catch (error: any) {
+      console.error("Erro ao excluir reserva:", error);
       setMensagem({
         tipo: "erro",
         texto: "Erro ao excluir reserva: " + error.message,
@@ -496,7 +504,7 @@ export default function App() {
   // ====================================================================
   if (loadingUser || !isAuthReady) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-gray-700 font-poppins bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="flex items-center justify-center min-h-screen text-gray-700 font-poppins bg-gray-100">
         <p className="font-semibold text-lg text-blue-800 p-4 rounded-xl shadow-xl bg-white">
           Carregando...
         </p>
@@ -506,7 +514,20 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-poppins p-8 text-gray-800">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 font-poppins p-8 text-gray-800">
+        {/* Tailwind CSS CDN */}
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+
         <div className="text-center p-8 bg-white rounded-3xl shadow-xl max-w-md mx-auto">
           <h1 className="text-3xl md:text-4xl font-extrabold text-blue-900 drop-shadow-md">
             EEMTI Jader de Figueiredo Correia
@@ -563,7 +584,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-8 font-poppins text-gray-800 bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen p-4 md:p-8 font-poppins text-gray-800 bg-gray-100">
       {/* Tailwind CSS CDN */}
       <script src="https://cdn.tailwindcss.com"></script>
 
@@ -618,27 +639,26 @@ export default function App() {
 
         {user && (
           <>
-            <div className="flex justify-center space-x-2 md:space-x-4 mb-6 p-2 rounded-2xl bg-white shadow-lg">
+            <div className="flex justify-center space-x-2 md:space-x-4 mb-6 p-1 rounded-full bg-white shadow-lg">
               <button
                 onClick={() => setView("reserva")}
-                className={`flex-1 flex justify-center items-center px-4 md:px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                className={`flex-1 flex justify-center items-center px-4 md:px-6 py-3 rounded-full font-semibold transition-all duration-300 ${
                   view === "reserva"
                     ? "bg-blue-600 text-white shadow-xl"
-                    : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                    : "bg-white text-gray-700 hover:bg-gray-100"
                 }`}
               >
                 <CalendarIcon className="mr-2 h-5 w-5" /> Fazer Reserva
               </button>
               <button
                 onClick={() => setView("relatorio")}
-                className={`flex-1 flex justify-center items-center px-4 md:px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                className={`flex-1 flex justify-center items-center px-4 md:px-6 py-3 rounded-full font-semibold transition-all duration-300 ${
                   view === "relatorio"
                     ? "bg-blue-600 text-white shadow-xl"
-                    : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                    : "bg-white text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <ClipboardListIcon className="mr-2 h-5 w-5" /> Relatório de
-                Reservas
+                <ClipboardListIcon className="mr-2 h-5 w-5" /> Relatório
               </button>
             </div>
 
@@ -648,20 +668,20 @@ export default function App() {
                   <span className="mr-2">📝</span> Nova Reserva
                 </h2>
 
-                <div className="flex justify-center space-x-2 md:space-x-4 mb-6">
+                <div className="flex justify-center space-x-2 md:space-x-4 mb-6 p-1 rounded-full bg-gray-100">
                   <button
                     onClick={() => {
                       setTipoAgendamento("ambiente");
                       setRecursoSelecionado("");
                       setHorariosSelecionados([]);
                     }}
-                    className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                    className={`flex-1 flex justify-center items-center px-4 py-3 rounded-full font-semibold transition-all duration-300 ${
                       tipoAgendamento === "ambiente"
-                        ? "bg-blue-600 text-white shadow-xl"
-                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                        ? "bg-white text-blue-600 shadow-md"
+                        : "bg-transparent text-gray-700 hover:bg-gray-200"
                     }`}
                   >
-                    <BuildingIcon className="mr-2 h-5 w-5" /> Agendar Ambiente
+                    <BuildingIcon className="mr-2 h-5 w-5" /> Ambiente
                   </button>
                   <button
                     onClick={() => {
@@ -669,14 +689,13 @@ export default function App() {
                       setRecursoSelecionado("");
                       setHorariosSelecionados([]);
                     }}
-                    className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                    className={`flex-1 flex justify-center items-center px-4 py-3 rounded-full font-semibold transition-all duration-300 ${
                       tipoAgendamento === "equipamento"
-                        ? "bg-blue-600 text-white shadow-xl"
-                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                        ? "bg-white text-blue-600 shadow-md"
+                        : "bg-transparent text-gray-700 hover:bg-gray-200"
                     }`}
                   >
-                    <EquipmentIcon className="mr-2 h-5 w-5" /> Agendar
-                    Equipamento
+                    <EquipmentIcon className="mr-2 h-5 w-5" /> Equipamento
                   </button>
                 </div>
 
@@ -693,7 +712,7 @@ export default function App() {
                       id="data"
                       value={dataSelecionada}
                       onChange={(e) => setDataSelecionada(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                     />
                   </div>
 
@@ -713,7 +732,7 @@ export default function App() {
                             setRecursoSelecionado(e.target.value);
                             setHorariosSelecionados([]);
                           }}
-                          className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                          className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                         >
                           <option value="">-- Selecione --</option>
                           {ambientes.map((amb) => (
@@ -734,7 +753,7 @@ export default function App() {
                           id="turma"
                           value={turmaSelecionada}
                           onChange={(e) => setTurmaSelecionada(e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                          className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                         >
                           <option value="">-- Selecione --</option>
                           {turmas.map((t) => (
@@ -760,7 +779,7 @@ export default function App() {
                           setRecursoSelecionado(e.target.value);
                           setHorariosSelecionados([]);
                         }}
-                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                       >
                         <option value="">-- Selecione --</option>
                         {equipamentos.map((eq) => (
@@ -782,7 +801,7 @@ export default function App() {
                       id="professor"
                       value={professorSelecionado}
                       onChange={(e) => setProfessorSelecionado(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                     >
                       <option value="">-- Selecione --</option>
                       {professores.map((p) => (
@@ -808,12 +827,12 @@ export default function App() {
                     return (
                       <div key={i}>
                         <label
-                          className={`flex flex-col justify-center items-center p-3 rounded-xl shadow-md transition-all duration-200 cursor-pointer text-center ${
+                          className={`flex flex-col justify-center items-center p-3 rounded-xl shadow-sm transition-all duration-200 cursor-pointer text-center ${
                             reservado
-                              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                              ? "bg-gray-100 text-gray-500 cursor-not-allowed"
                               : isChecked
-                              ? "bg-blue-200 border-2 border-blue-500 text-blue-900"
-                              : "bg-white hover:bg-blue-50"
+                              ? "bg-blue-100 border-2 border-blue-500 text-blue-900"
+                              : "bg-white hover:bg-gray-50"
                           }`}
                         >
                           <input
@@ -845,7 +864,7 @@ export default function App() {
                     !professorSelecionado ||
                     (tipoAgendamento === "ambiente" && !turmaSelecionada)
                   }
-                  className={`mt-8 w-full py-3 rounded-full font-bold text-white transition-all duration-300 transform ${
+                  className={`mt-8 w-full py-3 rounded-full font-bold text-white transition-all duration-300 ${
                     user &&
                     horariosSelecionados.length > 0 &&
                     professorSelecionado &&
@@ -866,43 +885,41 @@ export default function App() {
                   Reservas do Dia
                 </h2>
 
-                <div className="flex justify-center space-x-2 md:space-x-4 mb-6">
-                  <button
-                    onClick={() => setRelatorioTipo("ambiente")}
-                    className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                      relatorioTipo === "ambiente"
-                        ? "bg-blue-600 text-white shadow-xl"
-                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
-                    }`}
-                  >
-                    <BuildingIcon className="mr-2 h-5 w-5" /> Ambientes
-                  </button>
-                  <button
-                    onClick={() => setRelatorioTipo("equipamento")}
-                    className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                      relatorioTipo === "equipamento"
-                        ? "bg-blue-600 text-white shadow-xl"
-                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
-                    }`}
-                  >
-                    <EquipmentIcon className="mr-2 h-5 w-5" /> Equipamentos
-                  </button>
-                </div>
-
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-                  <label
-                    htmlFor="relatorioData"
-                    className="block text-gray-600 font-medium"
-                  >
-                    Selecione a data:
-                  </label>
-                  <input
-                    type="date"
-                    id="relatorioData"
-                    value={dataSelecionada}
-                    onChange={(e) => setDataSelecionada(e.target.value)}
-                    className="w-full md:w-1/3 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
-                  />
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                  <div className="flex justify-center space-x-2 md:space-x-4 p-1 rounded-full bg-gray-100 w-full md:w-2/3">
+                    <button
+                      onClick={() => setRelatorioTipo("ambiente")}
+                      className={`flex-1 flex justify-center items-center px-4 py-3 rounded-full font-semibold transition-all duration-300 ${
+                        relatorioTipo === "ambiente"
+                          ? "bg-white text-blue-600 shadow-md"
+                          : "bg-transparent text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      <BuildingIcon className="mr-2 h-5 w-5" /> Ambientes
+                    </button>
+                    <button
+                      onClick={() => setRelatorioTipo("equipamento")}
+                      className={`flex-1 flex justify-center items-center px-4 py-3 rounded-full font-semibold transition-all duration-300 ${
+                        relatorioTipo === "equipamento"
+                          ? "bg-white text-blue-600 shadow-md"
+                          : "bg-transparent text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      <EquipmentIcon className="mr-2 h-5 w-5" /> Equipamentos
+                    </button>
+                  </div>
+                  <div className="flex-1">
+                    <label htmlFor="relatorioData" className="sr-only">
+                      Selecione a data:
+                    </label>
+                    <input
+                      type="date"
+                      id="relatorioData"
+                      value={dataSelecionada}
+                      onChange={(e) => setDataSelecionada(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
                 </div>
 
                 {loadingReservas ? (
@@ -918,7 +935,7 @@ export default function App() {
                   <div className="overflow-x-auto rounded-xl shadow-md border border-gray-200">
                     <table className="min-w-full bg-white">
                       <thead>
-                        <tr className="text-left border-b-2 border-gray-300 bg-blue-100">
+                        <tr className="text-left border-b-2 border-gray-300 bg-gray-50">
                           <th className="py-4 px-4 font-bold text-blue-800">
                             {relatorioTipo === "ambiente"
                               ? "Ambiente"
