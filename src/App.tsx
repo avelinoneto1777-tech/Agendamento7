@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import {
   getAuth,
   onAuthStateChanged,
@@ -20,7 +22,6 @@ import {
 } from "firebase/firestore";
 import { initializeApp } from "firebase/app";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 // Ícones utilizando lucide-react para um visual moderno
 import {
@@ -32,7 +33,6 @@ import {
   LogOut as LogoutIcon,
   Building2 as BuildingIcon,
   Monitor as EquipmentIcon,
-  ArrowRight as ArrowRightIcon,
 } from "lucide-react";
 
 // ====================================================================
@@ -500,10 +500,11 @@ export default function App() {
   // ====================================================================
   // Renderização da interface
   // ====================================================================
+
   if (loadingUser || !isAuthReady) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-gray-700 font-poppins bg-gradient-to-br from-blue-50 to-indigo-100">
-        <p className="font-semibold text-lg text-blue-800 p-4 rounded-xl shadow-xl bg-white">
+      <div className="flex items-center justify-center min-h-screen text-gray-700 font-poppins bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+        <p className="font-semibold text-lg text-purple-800 p-4 rounded-xl shadow-xl bg-white border-l-4 border-purple-500">
           Carregando...
         </p>
       </div>
@@ -512,9 +513,9 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-poppins p-8 text-gray-800">
-        <div className="text-center p-8 bg-white rounded-3xl shadow-xl max-w-md mx-auto">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-blue-900 drop-shadow-md">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 font-poppins p-8 text-gray-800">
+        <div className="text-center p-8 bg-white rounded-3xl shadow-xl max-w-md mx-auto border-t-4 border-purple-500">
+          <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent drop-shadow-md">
             EEMTI Jader de Figueiredo Correia
           </h1>
           <h2 className="text-xl md:text-2xl mb-8 mt-2 text-gray-600 font-semibold">
@@ -525,7 +526,7 @@ export default function App() {
           </p>
           <button
             onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center px-4 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all duration-300 transform hover:scale-105"
+            className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105"
           >
             <svg
               className="w-6 h-6 mr-2"
@@ -554,10 +555,10 @@ export default function App() {
           </button>
           {mensagem && (
             <div
-              className={`mt-4 p-3 rounded-xl transition-all duration-300 ${
+              className={`mt-4 p-3 rounded-xl transition-all duration-300 border-l-4 ${
                 mensagem.tipo === "sucesso"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-400"
+                  : "bg-rose-50 text-rose-700 border-rose-400"
               }`}
             >
               <span>{mensagem.texto}</span>
@@ -569,7 +570,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-8 font-poppins text-gray-800 bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen p-4 md:p-8 font-poppins text-gray-800 bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
       {/* Tailwind CSS CDN */}
       <script src="https://cdn.tailwindcss.com"></script>
 
@@ -586,18 +587,18 @@ export default function App() {
       />
 
       <div className="max-w-6xl mx-auto">
-        <header className="bg-white rounded-3xl shadow-lg p-5 md:p-8 mb-6 flex flex-col items-center text-center">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-blue-900 drop-shadow-md">
+        <header className="bg-white rounded-3xl shadow-lg p-5 md:p-8 mb-6 flex flex-col items-center text-center border-t-4 border-gradient-to-r from-purple-500 to-blue-500">
+          <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent drop-shadow-md">
             EEMTI Jader de Figueiredo Correia
           </h1>
           <div className="flex flex-col md:flex-row justify-between w-full mt-4 items-center gap-4">
             <div className="flex items-center text-lg md:text-xl font-semibold text-gray-700">
-              <UserIcon className="mr-2 text-blue-600" size={24} /> Olá,{" "}
+              <UserIcon className="mr-2 text-purple-600" size={24} /> Olá,{" "}
               {user.displayName || "Usuário"} 👋
             </div>
             <button
               onClick={logout}
-              className="flex items-center px-4 py-2 bg-red-100 text-red-700 rounded-full font-semibold hover:bg-red-200 transition-all duration-300"
+              className="flex items-center px-4 py-2 bg-rose-100 text-rose-700 rounded-full font-semibold hover:bg-rose-200 transition-all duration-300 border border-rose-200"
             >
               <LogoutIcon className="mr-2 h-5 w-5" /> Sair
             </button>
@@ -606,10 +607,10 @@ export default function App() {
 
         {mensagem && (
           <div
-            className={`p-4 rounded-xl mb-6 flex justify-between items-center shadow-lg transition-all duration-300 ${
+            className={`p-4 rounded-xl mb-6 flex justify-between items-center shadow-lg transition-all duration-300 border-l-4 ${
               mensagem.tipo === "sucesso"
-                ? "bg-green-100 text-green-700 border border-green-200"
-                : "bg-red-100 text-red-700 border border-red-200"
+                ? "bg-emerald-50 text-emerald-700 border-emerald-400"
+                : "bg-rose-50 text-rose-700 border-rose-400"
             }`}
           >
             <span>{mensagem.texto}</span>
@@ -629,8 +630,8 @@ export default function App() {
                 onClick={() => setView("reserva")}
                 className={`flex-1 flex justify-center items-center px-4 md:px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                   view === "reserva"
-                    ? "bg-blue-600 text-white shadow-xl"
-                    : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                    ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-xl"
+                    : "bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-purple-100 hover:to-blue-100"
                 }`}
               >
                 <CalendarIcon className="mr-2 h-5 w-5" /> Fazer Reserva
@@ -639,8 +640,8 @@ export default function App() {
                 onClick={() => setView("relatorio")}
                 className={`flex-1 flex justify-center items-center px-4 md:px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                   view === "relatorio"
-                    ? "bg-blue-600 text-white shadow-xl"
-                    : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                    ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-xl"
+                    : "bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-purple-100 hover:to-blue-100"
                 }`}
               >
                 <ClipboardListIcon className="mr-2 h-5 w-5" /> Relatório de
@@ -649,7 +650,7 @@ export default function App() {
             </div>
 
             {view === "reserva" && (
-              <section className="p-6 bg-white rounded-3xl shadow-2xl">
+              <section className="p-6 bg-white rounded-3xl shadow-2xl border-t-4 border-gradient-to-r from-purple-500 to-blue-500">
                 <h2 className="text-2xl font-bold mb-6 text-gray-700 flex items-center">
                   <span className="mr-2">📝</span> Nova Reserva
                 </h2>
@@ -663,8 +664,8 @@ export default function App() {
                     }}
                     className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                       tipoAgendamento === "ambiente"
-                        ? "bg-blue-600 text-white shadow-xl"
-                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                        ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-xl"
+                        : "bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-teal-100"
                     }`}
                   >
                     <BuildingIcon className="mr-2 h-5 w-5" /> Agendar Ambiente
@@ -677,8 +678,8 @@ export default function App() {
                     }}
                     className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                       tipoAgendamento === "equipamento"
-                        ? "bg-blue-600 text-white shadow-xl"
-                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                        ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xl"
+                        : "bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-orange-100 hover:to-amber-100"
                     }`}
                   >
                     <EquipmentIcon className="mr-2 h-5 w-5" /> Agendar
@@ -699,7 +700,7 @@ export default function App() {
                       id="data"
                       value={dataSelecionada}
                       onChange={(e) => setDataSelecionada(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all"
                     />
                   </div>
 
@@ -719,7 +720,7 @@ export default function App() {
                             setRecursoSelecionado(e.target.value);
                             setHorariosSelecionados([]);
                           }}
-                          className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                          className="w-full p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-400 transition-all"
                         >
                           <option value="">-- Selecione --</option>
                           {ambientes.map((amb) => (
@@ -740,7 +741,7 @@ export default function App() {
                           id="turma"
                           value={turmaSelecionada}
                           onChange={(e) => setTurmaSelecionada(e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                          className="w-full p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-400 transition-all"
                         >
                           <option value="">-- Selecione --</option>
                           {turmas.map((t) => (
@@ -766,7 +767,7 @@ export default function App() {
                           setRecursoSelecionado(e.target.value);
                           setHorariosSelecionados([]);
                         }}
-                        className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                        className="w-full p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-orange-200 focus:border-orange-400 transition-all"
                       >
                         <option value="">-- Selecione --</option>
                         {equipamentos.map((eq) => (
@@ -788,7 +789,7 @@ export default function App() {
                       id="professor"
                       value={professorSelecionado}
                       onChange={(e) => setProfessorSelecionado(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all"
                     >
                       <option value="">-- Selecione --</option>
                       {professores.map((p) => (
@@ -814,12 +815,14 @@ export default function App() {
                     return (
                       <div key={i}>
                         <label
-                          className={`flex flex-col justify-center items-center p-3 rounded-xl shadow-md transition-all duration-200 cursor-pointer text-center ${
+                          className={`flex flex-col justify-center items-center p-3 rounded-xl shadow-md transition-all duration-200 cursor-pointer text-center border-2 ${
                             reservado
-                              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                              ? "bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200"
                               : isChecked
-                              ? "bg-blue-200 border-2 border-blue-500 text-blue-900"
-                              : "bg-white hover:bg-blue-50"
+                              ? tipoAgendamento === "ambiente"
+                                ? "bg-gradient-to-br from-emerald-100 to-teal-100 border-emerald-400 text-emerald-900"
+                                : "bg-gradient-to-br from-orange-100 to-amber-100 border-orange-400 text-orange-900"
+                              : "bg-white hover:bg-gradient-to-br hover:from-purple-50 hover:to-blue-50 border-gray-200 hover:border-purple-300"
                           }`}
                         >
                           <input
@@ -829,7 +832,11 @@ export default function App() {
                             onChange={(e) =>
                               handleHorarioSelection(h, e.target.checked)
                             }
-                            className="form-checkbox text-blue-600 h-5 w-5 mb-2"
+                            className={`form-checkbox h-5 w-5 mb-2 ${
+                              tipoAgendamento === "ambiente"
+                                ? "text-emerald-600"
+                                : "text-orange-600"
+                            }`}
                           />
                           <span className="text-sm font-semibold">{h}</span>
                           {reservado && (
@@ -856,7 +863,9 @@ export default function App() {
                     horariosSelecionados.length > 0 &&
                     professorSelecionado &&
                     (tipoAgendamento === "equipamento" || turmaSelecionada)
-                      ? "bg-blue-600 hover:bg-blue-700 shadow-xl hover:scale-105"
+                      ? tipoAgendamento === "ambiente"
+                        ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-xl hover:scale-105"
+                        : "bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 shadow-xl hover:scale-105"
                       : "bg-gray-400 cursor-not-allowed"
                   }`}
                 >
@@ -866,10 +875,10 @@ export default function App() {
             )}
 
             {view === "relatorio" && (
-              <section className="p-6 bg-white rounded-3xl shadow-2xl">
+              <section className="p-6 bg-white rounded-3xl shadow-2xl border-t-4 border-gradient-to-r from-purple-500 to-blue-500">
                 <h2 className="text-2xl font-bold mb-6 text-gray-700 flex items-center">
-                  <ClipboardListIcon className="mr-2 h-6 w-6" /> Relatório de
-                  Reservas do Dia
+                  <ClipboardListIcon className="mr-2 h-6 w-6 text-purple-600" />{" "}
+                  Relatório de Reservas do Dia
                 </h2>
 
                 <div className="flex justify-center space-x-2 md:space-x-4 mb-6">
@@ -877,8 +886,8 @@ export default function App() {
                     onClick={() => setRelatorioTipo("ambiente")}
                     className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                       relatorioTipo === "ambiente"
-                        ? "bg-blue-600 text-white shadow-xl"
-                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                        ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-xl"
+                        : "bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-teal-100"
                     }`}
                   >
                     <BuildingIcon className="mr-2 h-5 w-5" /> Ambientes
@@ -887,8 +896,8 @@ export default function App() {
                     onClick={() => setRelatorioTipo("equipamento")}
                     className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                       relatorioTipo === "equipamento"
-                        ? "bg-blue-600 text-white shadow-xl"
-                        : "bg-gray-200 text-gray-700 hover:bg-blue-100"
+                        ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xl"
+                        : "bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-orange-100 hover:to-amber-100"
                     }`}
                   >
                     <EquipmentIcon className="mr-2 h-5 w-5" /> Equipamentos
@@ -907,7 +916,7 @@ export default function App() {
                     id="relatorioData"
                     value={dataSelecionada}
                     onChange={(e) => setDataSelecionada(e.target.value)}
-                    className="w-full md:w-1/3 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all"
+                    className="w-full md:w-1/3 p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all"
                   />
                 </div>
 
@@ -921,25 +930,61 @@ export default function App() {
                     data.
                   </p>
                 ) : (
-                  <div className="overflow-x-auto rounded-xl shadow-md border border-gray-200">
+                  <div className="overflow-x-auto rounded-xl shadow-md border-2 border-gray-200">
                     <table className="min-w-full bg-white">
                       <thead>
-                        <tr className="text-left border-b-2 border-gray-300 bg-blue-100">
-                          <th className="py-4 px-4 font-bold text-blue-800">
+                        <tr
+                          className={`text-left border-b-2 border-gray-300 ${
+                            relatorioTipo === "ambiente"
+                              ? "bg-gradient-to-r from-emerald-100 to-teal-100"
+                              : "bg-gradient-to-r from-orange-100 to-amber-100"
+                          }`}
+                        >
+                          <th
+                            className={`py-4 px-4 font-bold ${
+                              relatorioTipo === "ambiente"
+                                ? "text-emerald-800"
+                                : "text-orange-800"
+                            }`}
+                          >
                             {relatorioTipo === "ambiente"
                               ? "Ambiente"
                               : "Equipamento"}
                           </th>
-                          <th className="py-4 px-4 font-bold text-blue-800">
+                          <th
+                            className={`py-4 px-4 font-bold ${
+                              relatorioTipo === "ambiente"
+                                ? "text-emerald-800"
+                                : "text-orange-800"
+                            }`}
+                          >
                             Horário
                           </th>
-                          <th className="py-4 px-4 font-bold text-blue-800">
+                          <th
+                            className={`py-4 px-4 font-bold ${
+                              relatorioTipo === "ambiente"
+                                ? "text-emerald-800"
+                                : "text-orange-800"
+                            }`}
+                          >
                             Professor
                           </th>
-                          <th className="py-4 px-4 font-bold text-blue-800">
+                          <th
+                            className={`py-4 px-4 font-bold ${
+                              relatorioTipo === "ambiente"
+                                ? "text-emerald-800"
+                                : "text-orange-800"
+                            }`}
+                          >
                             Responsável
                           </th>
-                          <th className="py-4 px-4 font-bold text-blue-800 text-center">
+                          <th
+                            className={`py-4 px-4 font-bold text-center ${
+                              relatorioTipo === "ambiente"
+                                ? "text-emerald-800"
+                                : "text-orange-800"
+                            }`}
+                          >
                             Ações
                           </th>
                         </tr>
@@ -950,7 +995,11 @@ export default function App() {
                             key={reserva.id}
                             className={`border-b border-gray-200 transition-colors ${
                               index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                            } hover:bg-blue-50`}
+                            } ${
+                              relatorioTipo === "ambiente"
+                                ? "hover:bg-emerald-50"
+                                : "hover:bg-orange-50"
+                            }`}
                           >
                             <td className="py-3 px-4">{reserva.nomeRecurso}</td>
                             <td className="py-3 px-4 font-semibold text-gray-700">
@@ -970,7 +1019,7 @@ export default function App() {
                                 onClick={() =>
                                   excluirReserva(reserva.id, reserva.tipo)
                                 }
-                                className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+                                className="p-2 rounded-full bg-rose-100 text-rose-600 hover:bg-rose-200 transition-colors border border-rose-200"
                                 aria-label="Excluir reserva"
                               >
                                 <TrashIcon size={18} />
