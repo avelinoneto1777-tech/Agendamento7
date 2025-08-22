@@ -71,6 +71,7 @@ const ambientes = [
   { id: "labCiencias", nome: "Laboratório de Ciências 🔬" },
   { id: "biblioteca", nome: "Biblioteca 📚" },
   { id: "labmatematica", nome: "Laboratório de Matemática 📚" },
+  { id: "sala7", nome: "Sala 7 📚" },
 ];
 
 const equipamentos = [
@@ -84,6 +85,7 @@ const equipamentos = [
   { id: "smartvInformaticaI", nome: "Smartv Informática I 📺" },
   { id: "smartvInformaticaII", nome: "Smartv Informática II 📺" },
   { id: "smartvSaladevideo", nome: "Smartv sala de vídeo 📺" },
+  { id: "smartvSala7", nome: "Smartv sala 7 📺" },
 ];
 
 const horarios = [
