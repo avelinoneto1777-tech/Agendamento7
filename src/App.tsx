@@ -70,6 +70,7 @@ const ambientes = [
   { id: "salaVideo", nome: "Sala de Vídeo 🎬" },
   { id: "labCiencias", nome: "Laboratório de Ciências 🔬" },
   { id: "biblioteca", nome: "Biblioteca 📚" },
+  { id: "labmatematica", nome: "Laboratório de Matemática 📚" },
 ];
 
 const equipamentos = [
