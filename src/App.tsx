@@ -1,18 +1,27 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 import {
   getAuth,
   onAuthStateChanged,
   signOut,
-  type User,
+  User,
   GoogleAuthProvider,
   signInWithPopup,
   signInWithCustomToken,
-} from "firebase/auth"
-import { getFirestore, collection, query, where, onSnapshot, addDoc, deleteDoc, doc } from "firebase/firestore"
-import { initializeApp } from "firebase/app"
-import { format } from "date-fns"
+} from "firebase/auth";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  addDoc,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
+import { initializeApp } from "firebase/app";
+import { format } from "date-fns";
 
 // Ícones utilizando lucide-react para um visual moderno
 import {
@@ -24,7 +33,7 @@ import {
   LogOut as LogoutIcon,
   Building2 as BuildingIcon,
   Monitor as EquipmentIcon,
-} from "lucide-react"
+} from "lucide-react";
 
 // ====================================================================
 // Interfaces e dados estáticos
@@ -32,26 +41,26 @@ import {
 
 // Define os tipos para as reservas salvas no Firestore
 interface Reserva {
-  id: string
-  tipo: "ambiente" | "equipamento"
-  recursoId: string
-  data: string
-  horario: string
-  turma?: string | null
-  professor: string
-  usuarioId: string
-  usuarioNome: string
-  criadoEm: string
+  id: string;
+  tipo: "ambiente" | "equipamento";
+  recursoId: string;
+  data: string;
+  horario: string;
+  turma?: string | null;
+  professor: string;
+  usuarioId: string;
+  usuarioNome: string;
+  criadoEm: string;
 }
 
 // Interface para a lista de relatório, que inclui o nome do recurso
 interface ReservaComNomeRecurso extends Reserva {
-  nomeRecurso: string
+  nomeRecurso: string;
 }
 
 interface Mensagem {
-  tipo: "sucesso" | "erro"
-  texto: string
+  tipo: "sucesso" | "erro";
+  texto: string;
 }
 
 // Seus dados estáticos com emojis
@@ -63,7 +72,7 @@ const ambientes = [
   { id: "biblioteca", nome: "Biblioteca 📚" },
   { id: "labmatematica", nome: "Laboratório de Matemática 📚" },
   { id: "sala7", nome: "Sala 7 📚" },
-]
+];
 
 const equipamentos = [
   { id: "projetorEpson", nome: "Projetor Epson 🖥️" },
@@ -77,7 +86,7 @@ const equipamentos = [
   { id: "smartvInformaticaII", nome: "Smartv Informática II 📺" },
   { id: "smartvSaladevideo", nome: "Smartv sala de vídeo 📺" },
   { id: "smartvSala7", nome: "Smartv sala 7 📺" },
-]
+];
 
 const horarios = [
   "07:15 - 08:05",
@@ -89,7 +98,7 @@ const horarios = [
   "14:00 - 14:50",
   "15:10 - 16:00",
   "16:00 - 16:50",
-]
+];
 
 const turmas = [
   "1ª Série A (Integral) 🧑‍🎓",
@@ -98,7 +107,7 @@ const turmas = [
   "2ª Série B (Integral) 🧑‍🎓",
   "3ª Série A (Integral) 🧑‍🎓",
   "3ª Série B (Integral) 🧑‍🎓",
-]
+];
 
 const professores = [
   "ALBERTO JUNIOR GONCALVES RIBEIRO 👨‍🏫",
@@ -122,39 +131,49 @@ const professores = [
   "MARIA GLEYCIENE SOARES DE SOUZA 👩‍🏫",
   "TEOBALDO RODRIGUES ARAUJO FILHO 👨‍🏫",
   "WENITHON CARLOS DE SOUSA 👨‍🏫",
-].sort()
+].sort();
 
 // ====================================================================
 // Componente principal
 // ====================================================================
 export default function App() {
   // Estado para autenticação e inicialização do Firebase
-  const [db, setDb] = useState<any>(null)
-  const [auth, setAuth] = useState<any>(null)
-  const [user, setUser] = useState<User | null>(null)
-  const [loadingUser, setLoadingUser] = useState(true)
-  const [isAuthReady, setIsAuthReady] = useState(false)
+  const [db, setDb] = useState<any>(null);
+  const [auth, setAuth] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   // Estado para a visualização de agendamento
-  const [tipoAgendamento, setTipoAgendamento] = useState<"ambiente" | "equipamento">("ambiente")
-  const [dataSelecionada, setDataSelecionada] = useState(format(new Date(), "yyyy-MM-dd"))
-  const [recursoSelecionado, setRecursoSelecionado] = useState<string>("")
-  const [horariosSelecionados, setHorariosSelecionados] = useState<string[]>([])
-  const [turmaSelecionada, setTurmaSelecionada] = useState<string>("")
-  const [professorSelecionado, setProfessorSelecionado] = useState<string>("")
+  const [tipoAgendamento, setTipoAgendamento] = useState<
+    "ambiente" | "equipamento"
+  >("ambiente");
+  const [dataSelecionada, setDataSelecionada] = useState(
+    format(new Date(), "yyyy-MM-dd")
+  );
+  const [recursoSelecionado, setRecursoSelecionado] = useState<string>("");
+  const [horariosSelecionados, setHorariosSelecionados] = useState<string[]>(
+    []
+  );
+  const [turmaSelecionada, setTurmaSelecionada] = useState<string>("");
+  const [professorSelecionado, setProfessorSelecionado] = useState<string>("");
 
   // Estado para a visualização de relatório
-  const [relatorioReservas, setRelatorioReservas] = useState<ReservaComNomeRecurso[]>([])
-  const [loadingReservas, setLoadingReservas] = useState(false)
-  const [relatorioTipo, setRelatorioTipo] = useState<"ambiente" | "equipamento">("ambiente")
+  const [relatorioReservas, setRelatorioReservas] = useState<
+    ReservaComNomeRecurso[]
+  >([]);
+  const [loadingReservas, setLoadingReservas] = useState(false);
+  const [relatorioTipo, setRelatorioTipo] = useState<
+    "ambiente" | "equipamento"
+  >("ambiente");
 
   // Estado para as reservas atuais (para verificação de conflitos)
-  const [reservasAmbiente, setReservasAmbiente] = useState<Reserva[]>([])
-  const [reservasEquipamento, setReservasEquipamento] = useState<Reserva[]>([])
+  const [reservasAmbiente, setReservasAmbiente] = useState<Reserva[]>([]);
+  const [reservasEquipamento, setReservasEquipamento] = useState<Reserva[]>([]);
 
   // Estado para mensagens de sucesso/erro
-  const [mensagem, setMensagem] = useState<Mensagem | null>(null)
-  const [view, setView] = useState<"reserva" | "relatorio">("reserva")
+  const [mensagem, setMensagem] = useState<Mensagem | null>(null);
+  const [view, setView] = useState<"reserva" | "relatorio">("reserva");
 
   // ====================================================================
   // Autenticação e Inicialização do Firebase (Versão com login do Google)
@@ -169,54 +188,61 @@ export default function App() {
           storageBucket: "agendamento-de-ambientes.firebasestorage.app",
           messagingSenderId: "436747247500",
           appId: "1:436747247500:web:d9438aab4b29c3d8f900a9",
-        }
+        };
 
-        const app = initializeApp(firebaseConfig)
-        const authInstance = getAuth(app)
-        const dbInstance = getFirestore(app)
-        setAuth(authInstance)
-        setDb(dbInstance)
+        const app = initializeApp(firebaseConfig);
+        const authInstance = getAuth(app);
+        const dbInstance = getFirestore(app);
+        setAuth(authInstance);
+        setDb(dbInstance);
 
         // Lógica de autenticação adaptada para o ambiente
-        const globalToken = (globalThis as any).__initial_auth_token
+        const globalToken = (globalThis as any).__initial_auth_token;
         if (globalToken) {
           // Usa o token do ambiente para login automático
-          await signInWithCustomToken(authInstance, globalToken)
+          await signInWithCustomToken(authInstance, globalToken);
         }
 
         const unsub = onAuthStateChanged(authInstance, (usuario) => {
-          setUser(usuario)
-          setLoadingUser(false)
-          setIsAuthReady(true)
-        })
-        return () => unsub()
+          setUser(usuario);
+          setLoadingUser(false);
+          setIsAuthReady(true);
+        });
+        return () => unsub();
       } catch (e: any) {
-        console.error("Erro ao inicializar Firebase ou autenticar:", e)
-        setLoadingUser(false)
-        setIsAuthReady(true)
+        console.error("Erro ao inicializar Firebase ou autenticar:", e);
+        setLoadingUser(false);
+        setIsAuthReady(true);
         setMensagem({
           tipo: "erro",
           texto: `Erro: ${e.message}. Verifique a configuração do Firebase.`,
-        })
+        });
       }
-    }
-    initFirebase()
-  }, [])
+    };
+    initFirebase();
+  }, []);
 
   // ====================================================================
   // Hooks para buscar dados do Firestore
   // ====================================================================
   useEffect(() => {
-    if (!db || !user || !isAuthReady || tipoAgendamento !== "ambiente" || !recursoSelecionado || !dataSelecionada) {
-      setReservasAmbiente([])
-      return
+    if (
+      !db ||
+      !user ||
+      !isAuthReady ||
+      tipoAgendamento !== "ambiente" ||
+      !recursoSelecionado ||
+      !dataSelecionada
+    ) {
+      setReservasAmbiente([]);
+      return;
     }
-    setLoadingReservas(true)
+    setLoadingReservas(true);
     const q = query(
       collection(db, "reservas_ambientes"),
       where("recursoId", "==", recursoSelecionado),
-      where("data", "==", dataSelecionada),
-    )
+      where("data", "==", dataSelecionada)
+    );
     const unsub = onSnapshot(
       q,
       (snapshot) => {
@@ -224,29 +250,43 @@ export default function App() {
           id: doc.id,
           tipo: "ambiente",
           ...doc.data(),
-        })) as Reserva[]
-        setReservasAmbiente(lista)
-        setLoadingReservas(false)
+        })) as Reserva[];
+        setReservasAmbiente(lista);
+        setLoadingReservas(false);
       },
       (error) => {
-        console.error("Erro ao buscar reservas de ambiente:", error)
-        setLoadingReservas(false)
-      },
-    )
-    return () => unsub()
-  }, [db, user, recursoSelecionado, dataSelecionada, tipoAgendamento, isAuthReady])
+        console.error("Erro ao buscar reservas de ambiente:", error);
+        setLoadingReservas(false);
+      }
+    );
+    return () => unsub();
+  }, [
+    db,
+    user,
+    recursoSelecionado,
+    dataSelecionada,
+    tipoAgendamento,
+    isAuthReady,
+  ]);
 
   useEffect(() => {
-    if (!db || !user || !isAuthReady || tipoAgendamento !== "equipamento" || !recursoSelecionado || !dataSelecionada) {
-      setReservasEquipamento([])
-      return
+    if (
+      !db ||
+      !user ||
+      !isAuthReady ||
+      tipoAgendamento !== "equipamento" ||
+      !recursoSelecionado ||
+      !dataSelecionada
+    ) {
+      setReservasEquipamento([]);
+      return;
     }
-    setLoadingReservas(true)
+    setLoadingReservas(true);
     const q = query(
       collection(db, "reservas_equipamentos"),
       where("recursoId", "==", recursoSelecionado),
-      where("data", "==", dataSelecionada),
-    )
+      where("data", "==", dataSelecionada)
+    );
     const unsub = onSnapshot(
       q,
       (snapshot) => {
@@ -254,29 +294,48 @@ export default function App() {
           id: doc.id,
           tipo: "equipamento",
           ...doc.data(),
-        })) as Reserva[]
-        setReservasEquipamento(lista)
-        setLoadingReservas(false)
+        })) as Reserva[];
+        setReservasEquipamento(lista);
+        setLoadingReservas(false);
       },
       (error) => {
-        console.error("Erro ao buscar reservas de equipamento:", error)
-        setLoadingReservas(false)
-      },
-    )
-    return () => unsub()
-  }, [db, user, recursoSelecionado, dataSelecionada, tipoAgendamento, isAuthReady])
+        console.error("Erro ao buscar reservas de equipamento:", error);
+        setLoadingReservas(false);
+      }
+    );
+    return () => unsub();
+  }, [
+    db,
+    user,
+    recursoSelecionado,
+    dataSelecionada,
+    tipoAgendamento,
+    isAuthReady,
+  ]);
 
   useEffect(() => {
-    if (!db || !user || !isAuthReady || !dataSelecionada || view !== "relatorio") {
-      setRelatorioReservas([])
-      return
+    if (
+      !db ||
+      !user ||
+      !isAuthReady ||
+      !dataSelecionada ||
+      view !== "relatorio"
+    ) {
+      setRelatorioReservas([]);
+      return;
     }
 
-    setLoadingReservas(true)
+    setLoadingReservas(true);
 
-    const collectionName = relatorioTipo === "ambiente" ? "reservas_ambientes" : "reservas_equipamentos"
+    const collectionName =
+      relatorioTipo === "ambiente"
+        ? "reservas_ambientes"
+        : "reservas_equipamentos";
 
-    const q = query(collection(db, collectionName), where("data", "==", dataSelecionada))
+    const q = query(
+      collection(db, collectionName),
+      where("data", "==", dataSelecionada)
+    );
 
     const unsub = onSnapshot(
       q,
@@ -285,29 +344,31 @@ export default function App() {
           id: doc.id,
           tipo: relatorioTipo,
           ...doc.data(),
-        })) as Reserva[]
+        })) as Reserva[];
 
         const listaComNomes: ReservaComNomeRecurso[] = lista.map((reserva) => {
           const dadosRecurso =
             reserva.tipo === "ambiente"
               ? ambientes.find((amb) => amb.id === reserva.recursoId)
-              : equipamentos.find((eq) => eq.id === reserva.recursoId)
+              : equipamentos.find((eq) => eq.id === reserva.recursoId);
           return {
             ...reserva,
             nomeRecurso: dadosRecurso?.nome || "Desconhecido",
-          }
-        })
+          };
+        });
 
-        setRelatorioReservas(listaComNomes.sort((a, b) => a.horario.localeCompare(b.horario)))
-        setLoadingReservas(false)
+        setRelatorioReservas(
+          listaComNomes.sort((a, b) => a.horario.localeCompare(b.horario))
+        );
+        setLoadingReservas(false);
       },
       (error) => {
-        console.error("Erro ao buscar reservas para o relatório:", error)
-        setLoadingReservas(false)
-      },
-    )
-    return () => unsub()
-  }, [db, user, dataSelecionada, view, relatorioTipo, isAuthReady])
+        console.error("Erro ao buscar reservas para o relatório:", error);
+        setLoadingReservas(false);
+      }
+    );
+    return () => unsub();
+  }, [db, user, dataSelecionada, view, relatorioTipo, isAuthReady]);
 
   // ====================================================================
   // Funções de manipulação do estado e Firestore
@@ -315,65 +376,76 @@ export default function App() {
 
   // Função para lidar com o login do Google
   const handleGoogleSignIn = async () => {
-    if (!auth) return
-    const provider = new GoogleAuthProvider()
+    if (!auth) return;
+    const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider)
+      await signInWithPopup(auth, provider);
       setMensagem({
         tipo: "sucesso",
         texto: "Login com Google realizado com sucesso!",
-      })
+      });
     } catch (error: any) {
-      setMensagem({ tipo: "erro", texto: error.message })
+      setMensagem({ tipo: "erro", texto: error.message });
     }
-  }
+  };
 
   const handleHorarioSelection = (horario: string, isChecked: boolean) => {
     if (isChecked) {
-      setHorariosSelecionados([...horariosSelecionados, horario])
+      setHorariosSelecionados([...horariosSelecionados, horario]);
     } else {
-      setHorariosSelecionados(horariosSelecionados.filter((h) => h !== horario))
+      setHorariosSelecionados(
+        horariosSelecionados.filter((h) => h !== horario)
+      );
     }
-  }
+  };
 
   const logout = () => {
     if (auth) {
       signOut(auth).catch((error) => {
-        setMensagem({ tipo: "erro", texto: error.message })
-      })
+        setMensagem({ tipo: "erro", texto: error.message });
+      });
     }
-  }
+  };
 
   const salvarReserva = async () => {
-    if (!db || !user) return
-    const isAmbiente = tipoAgendamento === "ambiente"
-    const collectionName = isAmbiente ? "reservas_ambientes" : "reservas_equipamentos"
+    if (!db || !user) return;
+    const isAmbiente = tipoAgendamento === "ambiente";
+    const collectionName = isAmbiente
+      ? "reservas_ambientes"
+      : "reservas_equipamentos";
 
-    if (!recursoSelecionado || !dataSelecionada || horariosSelecionados.length === 0 || !professorSelecionado) {
+    if (
+      !recursoSelecionado ||
+      !dataSelecionada ||
+      horariosSelecionados.length === 0 ||
+      !professorSelecionado
+    ) {
       setMensagem({
         tipo: "erro",
         texto: "Preencha todos os campos para reservar.",
-      })
-      return
+      });
+      return;
     }
     if (isAmbiente && !turmaSelecionada) {
       setMensagem({
         tipo: "erro",
         texto: "Selecione a turma para agendar um ambiente.",
-      })
-      return
+      });
+      return;
     }
 
-    const reservasAtuais = isAmbiente ? reservasAmbiente : reservasEquipamento
-    const conflitos = horariosSelecionados.filter((h) => reservasAtuais.some((r) => r.horario === h))
+    const reservasAtuais = isAmbiente ? reservasAmbiente : reservasEquipamento;
+    const conflitos = horariosSelecionados.filter((h) =>
+      reservasAtuais.some((r) => r.horario === h)
+    );
     if (conflitos.length > 0) {
       setMensagem({
         tipo: "erro",
         texto: `Os seguintes horários já estão reservados para este ${
           isAmbiente ? "ambiente" : "equipamento"
         }: ${conflitos.join(", ")}`,
-      })
-      return
+      });
+      return;
     }
 
     const promessasDeSalvar = horariosSelecionados.map((horario) =>
@@ -387,39 +459,43 @@ export default function App() {
         usuarioId: user!.uid,
         usuarioNome: user?.displayName || user?.email || "Desconhecido", // Nome do usuário logado
         criadoEm: new Date().toISOString(),
-      }),
-    )
+      })
+    );
 
     try {
-      await Promise.all(promessasDeSalvar)
+      await Promise.all(promessasDeSalvar);
       setMensagem({
         tipo: "sucesso",
         texto: "Reservas realizadas com sucesso!",
-      })
-      setHorariosSelecionados([])
-      setTurmaSelecionada("")
-      setProfessorSelecionado("")
+      });
+      setHorariosSelecionados([]);
+      setTurmaSelecionada("");
+      setProfessorSelecionado("");
     } catch (error: any) {
       setMensagem({
         tipo: "erro",
         texto: "Erro ao salvar reservas: " + error.message,
-      })
+      });
     }
-  }
+  };
 
-  const excluirReserva = async (id: string, tipo: "ambiente" | "equipamento") => {
-    if (!db) return
+  const excluirReserva = async (
+    id: string,
+    tipo: "ambiente" | "equipamento"
+  ) => {
+    if (!db) return;
     try {
-      const collectionName = tipo === "ambiente" ? "reservas_ambientes" : "reservas_equipamentos"
-      await deleteDoc(doc(db, collectionName, id))
-      setMensagem({ tipo: "sucesso", texto: "Reserva excluída com sucesso!" })
+      const collectionName =
+        tipo === "ambiente" ? "reservas_ambientes" : "reservas_equipamentos";
+      await deleteDoc(doc(db, collectionName, id));
+      setMensagem({ tipo: "sucesso", texto: "Reserva excluída com sucesso!" });
     } catch (error: any) {
       setMensagem({
         tipo: "erro",
         texto: "Erro ao excluir reserva: " + error.message,
-      })
+      });
     }
-  }
+  };
 
   // ====================================================================
   // Renderização da interface
@@ -432,7 +508,7 @@ export default function App() {
           Carregando...
         </p>
       </div>
-    )
+    );
   }
 
   if (!user) {
@@ -445,17 +521,27 @@ export default function App() {
           <h2 className="text-xl md:text-2xl mb-8 mt-2 text-gray-600 font-semibold">
             Agendamento de Ambientes e Equipamentos
           </h2>
-          <p className="text-lg text-gray-500 mb-6">Por favor, faça login para continuar.</p>
+          <p className="text-lg text-gray-500 mb-6">
+            Por favor, faça login para continuar.
+          </p>
           <button
             onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl shadow-md hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105"
           >
-            <svg className="w-6 h-6 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="currentColor">
+            <svg
+              className="w-6 h-6 mr-2"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 48 48"
+              fill="currentColor"
+            >
               <path
                 fill="#FFC107"
                 d="M43.611 20.083H42V20H24v8h11.303c-1.615 4.989-6.401 8.583-11.303 8.583-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.096 29.043 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
               />
-              <path fill="#FF3D00" d="M6.306 14.691L14.69 21.014l5.656-5.657-8.384-6.323z" />
+              <path
+                fill="#FF3D00"
+                d="M6.306 14.691L14.69 21.014l5.656-5.657-8.384-6.323z"
+              />
               <path
                 fill="#4CAF50"
                 d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238a12.028 12.028 0 01-7.219 2.19c-3.167 0-5.908-1.545-7.594-3.875L6.306 34.1z"
@@ -480,7 +566,7 @@ export default function App() {
           )}
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -490,7 +576,11 @@ export default function App() {
 
       {/* Google Fonts Poppins */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossOrigin="anonymous"
+      />
       <link
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap"
         rel="stylesheet"
@@ -503,7 +593,8 @@ export default function App() {
           </h1>
           <div className="flex flex-col md:flex-row justify-between w-full mt-4 items-center gap-4">
             <div className="flex items-center text-lg md:text-xl font-semibold text-gray-700">
-              <UserIcon className="mr-2 text-purple-600" size={24} /> Olá, {user.displayName || "Usuário"} 👋
+              <UserIcon className="mr-2 text-purple-600" size={24} /> Olá,{" "}
+              {user.displayName || "Usuário"} 👋
             </div>
             <button
               onClick={logout}
@@ -523,7 +614,10 @@ export default function App() {
             }`}
           >
             <span>{mensagem.texto}</span>
-            <button onClick={() => setMensagem(null)} className="text-gray-500 hover:text-gray-700 transition-colors">
+            <button
+              onClick={() => setMensagem(null)}
+              className="text-gray-500 hover:text-gray-700 transition-colors"
+            >
               <CloseIcon size={16} />
             </button>
           </div>
@@ -550,7 +644,8 @@ export default function App() {
                     : "bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-purple-100 hover:to-blue-100"
                 }`}
               >
-                <ClipboardListIcon className="mr-2 h-5 w-5" /> Relatório de Reservas
+                <ClipboardListIcon className="mr-2 h-5 w-5" /> Relatório de
+                Reservas
               </button>
             </div>
 
@@ -563,9 +658,9 @@ export default function App() {
                 <div className="flex justify-center space-x-2 md:space-x-4 mb-6">
                   <button
                     onClick={() => {
-                      setTipoAgendamento("ambiente")
-                      setRecursoSelecionado("")
-                      setHorariosSelecionados([])
+                      setTipoAgendamento("ambiente");
+                      setRecursoSelecionado("");
+                      setHorariosSelecionados([]);
                     }}
                     className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                       tipoAgendamento === "ambiente"
@@ -577,9 +672,9 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => {
-                      setTipoAgendamento("equipamento")
-                      setRecursoSelecionado("")
-                      setHorariosSelecionados([])
+                      setTipoAgendamento("equipamento");
+                      setRecursoSelecionado("");
+                      setHorariosSelecionados([]);
                     }}
                     className={`flex-1 flex justify-center items-center px-4 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                       tipoAgendamento === "equipamento"
@@ -587,13 +682,17 @@ export default function App() {
                         : "bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-orange-100 hover:to-amber-100"
                     }`}
                   >
-                    <EquipmentIcon className="mr-2 h-5 w-5" /> Agendar Equipamento
+                    <EquipmentIcon className="mr-2 h-5 w-5" /> Agendar
+                    Equipamento
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
-                    <label htmlFor="data" className="block text-gray-600 font-medium mb-1">
+                    <label
+                      htmlFor="data"
+                      className="block text-gray-600 font-medium mb-1"
+                    >
                       Data
                     </label>
                     <input
@@ -608,15 +707,18 @@ export default function App() {
                   {tipoAgendamento === "ambiente" ? (
                     <>
                       <div>
-                        <label htmlFor="ambiente" className="block text-gray-600 font-medium mb-1">
+                        <label
+                          htmlFor="ambiente"
+                          className="block text-gray-600 font-medium mb-1"
+                        >
                           Ambiente
                         </label>
                         <select
                           id="ambiente"
                           value={recursoSelecionado}
                           onChange={(e) => {
-                            setRecursoSelecionado(e.target.value)
-                            setHorariosSelecionados([])
+                            setRecursoSelecionado(e.target.value);
+                            setHorariosSelecionados([]);
                           }}
                           className="w-full p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-400 transition-all"
                         >
@@ -629,7 +731,10 @@ export default function App() {
                         </select>
                       </div>
                       <div>
-                        <label htmlFor="turma" className="block text-gray-600 font-medium mb-1">
+                        <label
+                          htmlFor="turma"
+                          className="block text-gray-600 font-medium mb-1"
+                        >
                           Turma
                         </label>
                         <select
@@ -649,15 +754,18 @@ export default function App() {
                     </>
                   ) : (
                     <div>
-                      <label htmlFor="equipamento" className="block text-gray-600 font-medium mb-1">
+                      <label
+                        htmlFor="equipamento"
+                        className="block text-gray-600 font-medium mb-1"
+                      >
                         Equipamento
                       </label>
                       <select
                         id="equipamento"
                         value={recursoSelecionado}
                         onChange={(e) => {
-                          setRecursoSelecionado(e.target.value)
-                          setHorariosSelecionados([])
+                          setRecursoSelecionado(e.target.value);
+                          setHorariosSelecionados([]);
                         }}
                         className="w-full p-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-orange-200 focus:border-orange-400 transition-all"
                       >
@@ -671,7 +779,10 @@ export default function App() {
                     </div>
                   )}
                   <div className="md:col-span-2">
-                    <label htmlFor="professor" className="block text-gray-600 font-medium mb-1">
+                    <label
+                      htmlFor="professor"
+                      className="block text-gray-600 font-medium mb-1"
+                    >
                       Professor
                     </label>
                     <select
@@ -690,14 +801,16 @@ export default function App() {
                   </div>
                 </div>
 
-                <h3 className="text-xl font-bold mb-4 text-gray-700">Horários Disponíveis</h3>
+                <h3 className="text-xl font-bold mb-4 text-gray-700">
+                  Horários Disponíveis
+                </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {horarios.map((h, i) => {
                     const reservado =
                       tipoAgendamento === "ambiente"
                         ? reservasAmbiente.some((r) => r.horario === h)
-                        : reservasEquipamento.some((r) => r.horario === h)
-                    const isChecked = horariosSelecionados.includes(h)
+                        : reservasEquipamento.some((r) => r.horario === h);
+                    const isChecked = horariosSelecionados.includes(h);
 
                     return (
                       <div key={i}>
@@ -706,26 +819,34 @@ export default function App() {
                             reservado
                               ? "bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200"
                               : isChecked
-                                ? tipoAgendamento === "ambiente"
-                                  ? "bg-gradient-to-br from-emerald-100 to-teal-100 border-emerald-400 text-emerald-900"
-                                  : "bg-gradient-to-br from-orange-100 to-amber-100 border-orange-400 text-orange-900"
-                                : "bg-white hover:bg-gradient-to-br hover:from-purple-50 hover:to-blue-50 border-gray-200 hover:border-purple-300"
+                              ? tipoAgendamento === "ambiente"
+                                ? "bg-gradient-to-br from-emerald-100 to-teal-100 border-emerald-400 text-emerald-900"
+                                : "bg-gradient-to-br from-orange-100 to-amber-100 border-orange-400 text-orange-900"
+                              : "bg-white hover:bg-gradient-to-br hover:from-purple-50 hover:to-blue-50 border-gray-200 hover:border-purple-300"
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={isChecked}
                             disabled={reservado}
-                            onChange={(e) => handleHorarioSelection(h, e.target.checked)}
+                            onChange={(e) =>
+                              handleHorarioSelection(h, e.target.checked)
+                            }
                             className={`form-checkbox h-5 w-5 mb-2 ${
-                              tipoAgendamento === "ambiente" ? "text-emerald-600" : "text-orange-600"
+                              tipoAgendamento === "ambiente"
+                                ? "text-emerald-600"
+                                : "text-orange-600"
                             }`}
                           />
                           <span className="text-sm font-semibold">{h}</span>
-                          {reservado && <span className="text-xs text-gray-500 mt-1">(Reservado)</span>}
+                          {reservado && (
+                            <span className="text-xs text-gray-500 mt-1">
+                              (Reservado)
+                            </span>
+                          )}
                         </label>
                       </div>
-                    )
+                    );
                   })}
                 </div>
 
@@ -756,7 +877,8 @@ export default function App() {
             {view === "relatorio" && (
               <section className="p-6 bg-white rounded-3xl shadow-2xl border-t-4 border-gradient-to-r from-purple-500 to-blue-500">
                 <h2 className="text-2xl font-bold mb-6 text-gray-700 flex items-center">
-                  <ClipboardListIcon className="mr-2 h-6 w-6 text-purple-600" /> Relatório de Reservas do Dia
+                  <ClipboardListIcon className="mr-2 h-6 w-6 text-purple-600" />{" "}
+                  Relatório de Reservas do Dia
                 </h2>
 
                 <div className="flex justify-center space-x-2 md:space-x-4 mb-6">
@@ -783,7 +905,10 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-                  <label htmlFor="relatorioData" className="block text-gray-600 font-medium">
+                  <label
+                    htmlFor="relatorioData"
+                    className="block text-gray-600 font-medium"
+                  >
                     Selecione a data:
                   </label>
                   <input
@@ -796,10 +921,13 @@ export default function App() {
                 </div>
 
                 {loadingReservas ? (
-                  <p className="text-center text-gray-500">Carregando reservas...</p>
+                  <p className="text-center text-gray-500">
+                    Carregando reservas...
+                  </p>
                 ) : relatorioReservas.length === 0 ? (
                   <p className="text-center text-gray-500">
-                    Nenhuma reserva de {relatorioTipo} registrada para esta data.
+                    Nenhuma reserva de {relatorioTipo} registrada para esta
+                    data.
                   </p>
                 ) : (
                   <div className="overflow-x-auto rounded-xl shadow-md border-2 border-gray-200">
@@ -814,35 +942,47 @@ export default function App() {
                         >
                           <th
                             className={`py-4 px-4 font-bold ${
-                              relatorioTipo === "ambiente" ? "text-emerald-800" : "text-orange-800"
+                              relatorioTipo === "ambiente"
+                                ? "text-emerald-800"
+                                : "text-orange-800"
                             }`}
                           >
-                            {relatorioTipo === "ambiente" ? "Ambiente" : "Equipamento"}
+                            {relatorioTipo === "ambiente"
+                              ? "Ambiente"
+                              : "Equipamento"}
                           </th>
                           <th
                             className={`py-4 px-4 font-bold ${
-                              relatorioTipo === "ambiente" ? "text-emerald-800" : "text-orange-800"
+                              relatorioTipo === "ambiente"
+                                ? "text-emerald-800"
+                                : "text-orange-800"
                             }`}
                           >
                             Horário
                           </th>
                           <th
                             className={`py-4 px-4 font-bold ${
-                              relatorioTipo === "ambiente" ? "text-emerald-800" : "text-orange-800"
+                              relatorioTipo === "ambiente"
+                                ? "text-emerald-800"
+                                : "text-orange-800"
                             }`}
                           >
                             Professor
                           </th>
                           <th
                             className={`py-4 px-4 font-bold ${
-                              relatorioTipo === "ambiente" ? "text-emerald-800" : "text-orange-800"
+                              relatorioTipo === "ambiente"
+                                ? "text-emerald-800"
+                                : "text-orange-800"
                             }`}
                           >
                             Responsável
                           </th>
                           <th
                             className={`py-4 px-4 font-bold text-center ${
-                              relatorioTipo === "ambiente" ? "text-emerald-800" : "text-orange-800"
+                              relatorioTipo === "ambiente"
+                                ? "text-emerald-800"
+                                : "text-orange-800"
                             }`}
                           >
                             Ações
@@ -855,18 +995,30 @@ export default function App() {
                             key={reserva.id}
                             className={`border-b border-gray-200 transition-colors ${
                               index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                            } ${relatorioTipo === "ambiente" ? "hover:bg-emerald-50" : "hover:bg-orange-50"}`}
+                            } ${
+                              relatorioTipo === "ambiente"
+                                ? "hover:bg-emerald-50"
+                                : "hover:bg-orange-50"
+                            }`}
                           >
                             <td className="py-3 px-4">{reserva.nomeRecurso}</td>
-                            <td className="py-3 px-4 font-semibold text-gray-700">{reserva.horario}</td>
+                            <td className="py-3 px-4 font-semibold text-gray-700">
+                              {reserva.horario}
+                            </td>
                             <td className="py-3 px-4">
                               {reserva.professor}
-                              {reserva.turma && <span className="text-xs text-gray-500 block">({reserva.turma})</span>}
+                              {reserva.turma && (
+                                <span className="text-xs text-gray-500 block">
+                                  ({reserva.turma})
+                                </span>
+                              )}
                             </td>
                             <td className="py-3 px-4">{reserva.usuarioNome}</td>
                             <td className="py-3 px-4 text-center">
                               <button
-                                onClick={() => excluirReserva(reserva.id, reserva.tipo)}
+                                onClick={() =>
+                                  excluirReserva(reserva.id, reserva.tipo)
+                                }
                                 className="p-2 rounded-full bg-rose-100 text-rose-600 hover:bg-rose-200 transition-colors border border-rose-200"
                                 aria-label="Excluir reserva"
                               >
@@ -885,5 +1037,5 @@ export default function App() {
         )}
       </div>
     </div>
-  )
+  );
 }
