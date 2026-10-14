@@ -5,11 +5,11 @@ import {
   getAuth,
   onAuthStateChanged,
   signOut,
-  type User,
   GoogleAuthProvider,
   signInWithPopup,
   signInWithCustomToken,
 } from "firebase/auth"
+import type { User } from "firebase/auth"
 import { getFirestore, collection, query, where, onSnapshot, addDoc, deleteDoc, doc } from "firebase/firestore"
 import { initializeApp } from "firebase/app"
 import { format } from "date-fns"
@@ -48,6 +48,23 @@ interface Reserva {
 interface ReservaComNomeRecurso extends Reserva {
   nomeRecurso: string
 }
+
+const textoSeguro = (valor: unknown): string => (typeof valor === "string" ? valor : String(valor ?? ""))
+
+const normalizarReserva = (id: string, tipo: "ambiente" | "equipamento", dados: Record<string, unknown>): Reserva => ({
+  id,
+  tipo,
+  recursoId: textoSeguro(dados.recursoId),
+  data: textoSeguro(dados.data),
+  horario: textoSeguro(dados.horario),
+  turma: typeof dados.turma === "string" ? dados.turma : null,
+  professor: textoSeguro(dados.professor),
+  usuarioId: textoSeguro(dados.usuarioId),
+  usuarioNome: textoSeguro(dados.usuarioNome),
+  criadoEm: textoSeguro(dados.criadoEm),
+})
+
+const mensagemErroFirestore = "Não foi possível carregar as reservas. Verifique suas permissões e tente novamente."
 
 interface Mensagem {
   tipo: "sucesso" | "erro"
@@ -220,17 +237,15 @@ export default function App() {
     const unsub = onSnapshot(
       q,
       (snapshot) => {
-        const lista = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          tipo: "ambiente",
-          ...doc.data(),
-        })) as Reserva[]
+        const lista = snapshot.docs.map((doc) => normalizarReserva(doc.id, "ambiente", doc.data()))
         setReservasAmbiente(lista)
         setLoadingReservas(false)
       },
       (error) => {
         console.error("Erro ao buscar reservas de ambiente:", error)
+        setReservasAmbiente([])
         setLoadingReservas(false)
+        setMensagem({ tipo: "erro", texto: mensagemErroFirestore })
       },
     )
     return () => unsub()
@@ -250,17 +265,15 @@ export default function App() {
     const unsub = onSnapshot(
       q,
       (snapshot) => {
-        const lista = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          tipo: "equipamento",
-          ...doc.data(),
-        })) as Reserva[]
+        const lista = snapshot.docs.map((doc) => normalizarReserva(doc.id, "equipamento", doc.data()))
         setReservasEquipamento(lista)
         setLoadingReservas(false)
       },
       (error) => {
         console.error("Erro ao buscar reservas de equipamento:", error)
+        setReservasEquipamento([])
         setLoadingReservas(false)
+        setMensagem({ tipo: "erro", texto: mensagemErroFirestore })
       },
     )
     return () => unsub()
@@ -281,11 +294,7 @@ export default function App() {
     const unsub = onSnapshot(
       q,
       (snapshot) => {
-        const lista = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          tipo: relatorioTipo,
-          ...doc.data(),
-        })) as Reserva[]
+        const lista = snapshot.docs.map((doc) => normalizarReserva(doc.id, relatorioTipo, doc.data()))
 
         const listaComNomes: ReservaComNomeRecurso[] = lista.map((reserva) => {
           const dadosRecurso =
@@ -298,12 +307,19 @@ export default function App() {
           }
         })
 
-        setRelatorioReservas(listaComNomes.sort((a, b) => a.horario.localeCompare(b.horario)))
+        setRelatorioReservas(
+          listaComNomes.sort((a, b) => {
+            const horarioCompare = (a.horario || "").localeCompare(b.horario || "")
+            return horarioCompare || (a.criadoEm || "").localeCompare(b.criadoEm || "")
+          }),
+        )
         setLoadingReservas(false)
       },
       (error) => {
         console.error("Erro ao buscar reservas para o relatório:", error)
+        setRelatorioReservas([])
         setLoadingReservas(false)
+        setMensagem({ tipo: "erro", texto: mensagemErroFirestore })
       },
     )
     return () => unsub()
@@ -857,13 +873,15 @@ export default function App() {
                               index % 2 === 0 ? "bg-white" : "bg-gray-50"
                             } ${relatorioTipo === "ambiente" ? "hover:bg-emerald-50" : "hover:bg-orange-50"}`}
                           >
-                            <td className="py-3 px-4">{reserva.nomeRecurso}</td>
-                            <td className="py-3 px-4 font-semibold text-gray-700">{reserva.horario}</td>
+                            <td className="py-3 px-4">{reserva.nomeRecurso || "Desconhecido"}</td>
+                            <td className="py-3 px-4 font-semibold text-gray-700">{textoSeguro(reserva.horario)}</td>
                             <td className="py-3 px-4">
-                              {reserva.professor}
-                              {reserva.turma && <span className="text-xs text-gray-500 block">({reserva.turma})</span>}
+                              {String(reserva.professor ?? "")}
+                              {typeof reserva.turma === "string" && reserva.turma && (
+                                <span className="text-xs text-gray-500 block">({reserva.turma})</span>
+                              )}
                             </td>
-                            <td className="py-3 px-4">{reserva.usuarioNome}</td>
+                            <td className="py-3 px-4">{String(reserva.usuarioNome ?? "")}</td>
                             <td className="py-3 px-4 text-center">
                               <button
                                 onClick={() => excluirReserva(reserva.id, reserva.tipo)}
